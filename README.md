@@ -191,7 +191,7 @@ pip install uv
 ### Step 4 — Clone the Repository
 
 ```bash
-git clone https://github.com/[our-repo-link-here]
+git clone https://github.com/RC-temp-name/campus-navigator
 cd campus_navigator
 ```
 
