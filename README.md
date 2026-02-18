@@ -43,9 +43,14 @@ When a user asks for directions, `NetworkX` runs a shortest-path algorithm acros
 ```
 campus_navigator/
 │
+├── .venv/                       ← Local virtual environment managed by uv
+├── .python-version              ← Specifies the exact Python version for the project
+├── pyproject.toml               ← The modern source of truth for dependencies and metadata
+├── uv.lock                      ← The exact "locked" versions of every library for consistency
+├── .gitignore                   ← Tells Git to ignore the virtual environment and cache files
+│
 ├── run.py                       ← Start the app by running this file
-├── requirements.txt             ← List of all Python libraries the project needs
-├── README.md                    ← This file
+├── README.md                    ← Project documentation and setup instructions
 │
 ├── app/                         ← Everything that makes the app work lives here
 │   ├── __init__.py              ← Tells Python "this folder is a package" & starts Flask
@@ -71,6 +76,7 @@ campus_navigator/
     ├── nodes.json               ← Every room/intersection with its name and coordinates
     └── edges.json               ← Every walking connection between two nodes
 ```
+
 
 This structure follows the **MVC (Model–View–Controller)** pattern — each part of the app has one job and they don't mix. The practical benefit for the team is that multiple people can work on different files simultaneously without conflicting.
 
