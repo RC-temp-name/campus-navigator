@@ -57,7 +57,7 @@ campus_navigator/
 │   ├── routes.py                ← Handles URLs: connects user input → logic → webpage
 │   │
 │   ├── logic/                   ← The "brain" of the app (pathfinding code)
-│   │   ├── __init__.py
+│   │   ├── __init__.py          ← Exports core pathfinding functions for easy imports
 │   │   └── graph_manager.py     ← Loads building data, runs NetworkX, returns directions
 │   │
 │   ├── static/                  ← Files the browser downloads directly
