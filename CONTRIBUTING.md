@@ -166,17 +166,11 @@ Once approved and checks pass, merge through GitHub.
 
 Conflicts are normal and expected.
 
-When conflict happens:
+When `git merge main` reports conflicts (after you've updated your local `main` from `origin/main`):
 
-1. Run:
-
-```bash
-git merge main
-```
-
-2. Open conflicted files and choose the correct final code
-3. Test locally
-4. Mark as resolved and commit
+1. Open conflicted files and choose the correct final code
+2. Test locally
+3. Mark as resolved and commit
 
 ```bash
 git add .
