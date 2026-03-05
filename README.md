@@ -29,10 +29,13 @@ Each instruction can be dismissed as you go, similar to how Google Maps lets you
 
 ### How the Pathfinding Works
 
-The building is modeled as a **graph** — locations are **nodes** and the walking paths between them are **edges**. Every node stores two things:
+The building is modeled as a **graph** — locations are **nodes** and the walking paths between them are **edges**. Every node stores five things:
 
-1. A text instruction (e.g., `"Turn left at the staircase"`)
-2. Pixel coordinates on the floor plan image (e.g., `x=300, y=150`)
+1. **id** — a unique identifier for the node (e.g., `"room_101"`), used to reference it in edges and routing queries
+2. **name** — the human-readable label (e.g., `"Room 101"` or `"Main Staircase"`), displayed in directions
+3. **type** — the category of location (e.g., `"room"`, `"staircase"`, `"entrance"`), used to filter and categorize nodes
+4. **coords** — the pixel coordinates `[x, y]` on the floor plan image, used to draw the blue route line
+5. **floor** — the floor number the node is on, allowing multi-floor pathfinding and filtering
 
 When a user asks for directions, `NetworkX` runs a shortest-path algorithm across the graph and returns a list of nodes. From that one list, we produce both the step-by-step text directions _and_ the visual blue line — the coordinates are already stored in the nodes.
 
