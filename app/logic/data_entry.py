@@ -13,8 +13,9 @@ def load_json(path):
     with open(path, "r") as f:
         try:
             return json.load(f)
-        except json.JSONDecodeError:
-            return []
+        except json.JSONDecodeError as e:
+            print(f"Error: Failed to parse JSON file '{path}': {e}")
+            raise
 
 
 def save_json(path, data):
