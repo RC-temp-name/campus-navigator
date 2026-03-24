@@ -56,13 +56,13 @@ def add_edge():
 
     source = input("Enter Start Node ID: ").strip()
     target = input("Enter End Node ID: ").strip()
-    edge_type = input("Enter Edge Type (hallway, stairs, elevator): ").strip()
+    weight = float(input("Enter Edge Weight (numeric cost): ").strip())
     instruction = input("Enter Instruction (optional): ").strip()
 
     edge = {
         "source": source,
         "target": target,
-        "type": edge_type,
+        "weight": weight,
         "instruction": instruction
     }
 
