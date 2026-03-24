@@ -10,5 +10,17 @@
     "target": "hallway_corner",
     "weight": 20,
     "instruction": "Exit Room 101 and turn RIGHT into the hallway."
+  },
+  {
+    "source": "door_101",
+    "target": "room_102",
+    "weight": 20,
+    "instruction": "Exit hallway and turn RIGHT into room 201."
+  },
+  {
+    "source": "room_101",
+    "target": "room_102",
+    "weight": 20,
+    "instruction": "Exit hallway and turn RIGHT into room 201."
   }
 ]
