@@ -1,14 +1,18 @@
 import json
 import os
+from pathlib import Path
 
-NODES_FILE = "data/nodes.json"
-EDGES_FILE = "data/edges.json"
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+NODES_FILE = DATA_DIR / "nodes.json"
+EDGES_FILE = DATA_DIR / "edges.json"
 
 
 # JSON helpers
 
 def load_json(path):
-    if not os.path.exists(path):
+    path = Path(path)
+    if not path.exists():
         return []
     with open(path, "r") as f:
         try:
@@ -19,6 +23,8 @@ def load_json(path):
 
 
 def save_json(path, data):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
         json.dump(data, f, indent=4)
 
