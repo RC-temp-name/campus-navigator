@@ -5,6 +5,31 @@ import matplotlib.pyplot as plt
 from app.logic.shortest_route import shortest_route
 from pathlib import Path
 
+
+# Distance + Weight Computation
+
+def manhattan(a, b):
+    return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+
+def compute_weight(edge_type, src_coords, tgt_coords, preference):
+    base = manhattan(src_coords, tgt_coords)
+
+    # Hallways distance
+    if edge_type == "hallway":
+        return base
+
+    # Stairs vs elevator preference logic
+    if edge_type == "stairs":
+        return base if preference == "stairs" else base + 500
+
+    if edge_type == "elevator":
+        return base if preference == "elevator" else base + 500
+
+    # Default fallback
+    return base
+
+
 # read the JSON files
 def read_json_files():
     """
