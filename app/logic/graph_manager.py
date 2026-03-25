@@ -1,72 +1,84 @@
 import json
 import networkx as nx
+import matplotlib.pyplot as plt
 
-# Distance + Weight Computation
+from app.logic.shortest_route import shortest_route
+from pathlib import Path
 
-def manhattan(a, b):
-    return abs(a[0] - b[0]) + abs(a[1] - b[1])
-
-
-def compute_weight(edge_type, src_coords, tgt_coords, preference):
-    base = manhattan(src_coords, tgt_coords)
-
-    # Hallways distance
-    if edge_type == "hallway":
-        return base
-
-    # Stairs vs elevator preference logic
-    if edge_type == "stairs":
-        return base if preference == "stairs" else base + 500
-
-    if edge_type == "elevator":
-        return base if preference == "elevator" else base + 500
-
-    # Default fallback
-    return base
-
-
-# Graph Loader
-
-def load_building_graph(nodes_file, edges_file, preference="elevator"):
+# read the JSON files
+def read_json_files():
     """
-   loads a building graph from JSON files, 
-   computing edge weights based on type and 
-   user preference
+    Load nodes and edges JSON data using deterministic paths.
+    The data directory is resolved relative to the repository root,
+    assumed to be two levels above this file (app/logic/graph_manager.py).
     """
+    # Resolve repo root as two levels up from this file: app/logic -> app -> repo root
+    repo_root = Path(__file__).resolve().parents[2]
+    data_dir = repo_root / "data"
+    nodes_path = data_dir / "nodes.json"
+    edges_path = data_dir / "edges.json"
+    try:
+        with nodes_path.open("r", encoding="utf-8") as f:
+            nodes_data = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Failed to load nodes data from {nodes_path}: {exc}") from exc
+    try:
+        with edges_path.open("r", encoding="utf-8") as f:
+            edges_data = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Failed to load edges data from {edges_path}: {exc}") from exc
+    
+    return nodes_data, edges_data
 
-    # Load nodes
-    with open(nodes_file) as f:
-        nodes = json.load(f)
 
-    # Load edges
-    with open(edges_file) as f:
-        edges = json.load(f)
+def build_graph():
+    nodes_data, edges_data = read_json_files()
+    # create a directed graph
+    G = nx.DiGraph()
+    # method to add nodes and edges
+    def add_nodes_and_edges():
+        for node in nodes_data:
+            node_id = node["id"]
+            G.add_node(node_id, **node)
+        for edge in edges_data:
+            G.add_edge(edge['source'], edge['target'], **edge)
+    add_nodes_and_edges()
+    return G, nodes_data, edges_data
 
-    # Create graph
-    G = nx.MultiDiGraph()
 
-    # Add nodes
-    for node in nodes:
-        G.add_node(node["id"], **node)
+#method to get direction
+def get_directions(graph, start, end):
+    path = shortest_route(graph, start, end)
+    if path is None:
+        return "No path found"
+    directions = []
+    coordinates = []
+    #grabs directions
+    for i in range(len(path) - 1):
+        edge_data = graph.get_edge_data(path[i], path[i + 1])
+        directions.append(edge_data['instruction'])
+        coordinates.append(graph.nodes[path[i]]['coords'])
+    #if start and end are the same, add a message to directions
+    if (start == end):
+        directions.append("You are already at your destination.")
+    return directions, coordinates
 
-    # Add edges with computed weights
-    for edge in edges:
-        src = edge["source"]
-        tgt = edge["target"]
-        src_coords = G.nodes[src]["coords"]
-        tgt_coords = G.nodes[tgt]["coords"]
-
-        edge_type = edge.get("type", "hallway")
-        weight = compute_weight(edge_type, src_coords, tgt_coords, preference)
-
-        G.add_edge(src, tgt, weight=weight, **edge)
-
-    return G
-
+#builds photo of the graph
 def main():
-    # Example usage
-    graph = load_building_graph("data/nodes.json", "data/edges.json", preference="elevator")
-    print("Graph loaded with {} nodes and {} edges".format(graph.number_of_nodes(), graph.number_of_edges()))
+    G, nodes_data, edges_data = build_graph()
+    # print(f"Successfully built graph!")
+    # print(f"Nodes: {G.number_of_nodes()}")
+    # print(f"Edges: {G.number_of_edges()}")
+    pos = {node["id"]: tuple(node["coords"]) for node in nodes_data}
+    nx.draw(G, pos, with_labels=True, node_color='skyblue', node_size=2000, edge_color='black', font_size=10, font_weight='bold', arrowsize=20)
+    #plt.show()
+    plt.savefig("map_preview.png")
+    print("Map saved as map_preview.png - check your file list!")
+    #print(G.edges())
+
+    # #calcs shortest path between room_101 and room_102
+    # print(shortest_route(G, 'room_101', 'room_102'))
+    print(get_directions(G, 'room_102', 'room_101'))
 
 if __name__ == "__main__":
     main()

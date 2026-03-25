@@ -221,3 +221,129 @@ git merge main
 # push branch
 git push -u origin feature/your-feature
 ```
+
+---
+
+## VS Code / GitHub Desktop Cheatsheet
+
+An alternative to using git in the terminal is VS Code or GitHub Desktop.
+This follows the same team rules and gives the same result.
+
+### Golden Rules (Same as Terminal Workflow)
+
+- Work on your own feature branch
+- Do not commit directly to `main`
+- Keep your branch updated with `main` often
+- Open PRs from `feature/...` -> `main` only
+
+---
+
+## VS Code Workflow
+
+### 1) Start of session (update your local `main`)
+
+1. Open VS Code in project folder
+2. Open **Source Control** (branch icon on left)
+3. Make sure branch is `main` (bottom-left branch name)
+4. Click `...` -> **Pull**
+
+This is equivalent to:
+
+```bash
+git checkout main
+git pull origin main
+```
+
+### 2) Create a new feature branch
+
+1. Click current branch name (bottom-left)
+2. Choose **Create new branch**
+3. Name it like `feature/short-description`
+
+Equivalent:
+
+```bash
+git checkout -b feature/short-description
+```
+
+### 3) Continue existing branch and merge `main` into it
+
+1. Switch to your feature branch (click branch name)
+2. Click `...` -> **Branch** -> **Merge Branch...**
+3. Select `main`
+4. If conflicts appear, use VS Code Merge Editor and choose final code carefully
+5. Save files, then commit conflict resolution
+
+Equivalent:
+
+```bash
+git checkout your-branch
+git merge main
+```
+
+### 4) Commit changes
+
+1. In Source Control, stage changed files (`+`)
+2. Write a clear commit message
+3. Click **Commit**
+
+Equivalent:
+
+```bash
+git add .
+git commit -m "Your clear message"
+```
+
+### 5) Push branch
+
+1. Click **Publish Branch** (first time) or **Push/Sync Changes** (later)
+
+Equivalent:
+
+```bash
+git push -u origin your-branch-name
+# later
+git push
+```
+
+---
+
+## GitHub Desktop Workflow (Alternative)
+
+If VS Code Source Control feels confusing, GitHub Desktop is simpler for many people:
+
+1. Fetch origin
+2. Switch to `main` and pull latest
+3. Switch back to your feature branch
+4. Use **Branch** -> **Update from main**
+5. Commit + Push
+6. Open PR to `main`
+
+---
+
+## Important PR Rule
+
+- Correct PR direction: `feature/...` -> `main`
+- Avoid opening PRs like `main` -> `feature/...` manually
+- If GitHub shows **Update branch** on your feature PR, using that button is okay (it updates your feature branch safely)
+
+---
+
+## Conflict Checklist (When Merge Fails)
+
+1. Resolve all conflict markers in files
+2. Run project locally and test
+3. Commit with message like: `Resolve merge conflicts with main`
+4. Push branch
+5. Re-check PR
+
+---
+
+## Terminal Command ↔ VS Code Action Map
+
+- `git pull origin main` -> Source Control `...` -> **Pull**
+- `git checkout -b feature/x` -> Branch name -> **Create new branch**
+- `git checkout my-branch` -> Branch name -> **Switch branch**
+- `git merge main` -> `...` -> **Branch** -> **Merge Branch...** -> `main`
+- `git commit -m "msg"` -> Stage files + Commit message + **Commit**
+- `git push` -> **Push** / **Sync Changes**
