@@ -20,7 +20,7 @@ def directions():
         try:
             result = get_directions(entrance, classroom)
             if result == "No path found":
-                error = 'No path found'
+                error = 'No route could be found between the selected entrance and destination. Please check your selections and try again.'
             else:
                 steps, coordinates = result
         except RuntimeError as e:
