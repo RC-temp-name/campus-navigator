@@ -70,7 +70,8 @@ def get_directions(start, end):
 
 #builds photo of the graph
 def main():
-    G, nodes_data, edges_data = build_graph()
+    nodes_data, _ = read_json_files()
+    G = build_graph()
     # print(f"Successfully built graph!")
     # print(f"Nodes: {G.number_of_nodes()}")
     # print(f"Edges: {G.number_of_edges()}")
@@ -82,8 +83,8 @@ def main():
     #print(G.edges())
 
     # #calcs shortest path between room_101 and room_102
-    # print(shortest_route(G, 'room_101', 'room_102'))
-    print(get_directions(G, 'room_102', 'room_101'))
+    # print(shortest_route('room_101', 'room_102'))
+    print(get_directions('room_102', 'room_101'))
 
 if __name__ == "__main__":
     main()
