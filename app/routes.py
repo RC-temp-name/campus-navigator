@@ -3,24 +3,22 @@ from app.logic import get_directions
 
 bp = Blueprint('main', __name__)
 
-@bp.route('/')
+@bp.route('/', methods=['GET', 'POST'])
 def index():
-    # Render the main search + map page
-    return render_template('index.html')
+    steps = None
+    coordinates = None
+    error = None
+    if request.method == 'POST':
+        entrance = request.form.get('entrance')
+        destination = request.form.get('destination')
+        result = get_directions(entrance, destination)
+        if result == "No path found":
+            error = "No path found"
+        else:
+            steps, coordinates = result
+    return render_template('index.html', steps=steps, coordinates=coordinates, error=error)
 
 @bp.route('/api/test')
 def test():
     directions = get_directions("room_101", "room_102")
     return jsonify(directions)
-
-@bp.route('/directions', methods=['POST'])
-def directions():
-    entrance = request.args.get('entrance')
-    destination = request.args.get('destination')
-    if not entrance or not destination:
-        return jsonify({'error': 'Missing start or end parameter'}), 400
-    result = get_directions(entrance, destination)
-    if result == "No path found":
-        return jsonify({'error': 'No path found'}), 404
-    steps, coordinates = result
-    return jsonify({'directions': steps, 'coordinates': coordinates})
