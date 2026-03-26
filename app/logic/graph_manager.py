@@ -36,18 +36,17 @@ def build_graph():
     # create a directed graph
     G = nx.DiGraph()
     # method to add nodes and edges
-    def add_nodes_and_edges():
-        for node in nodes_data:
-            node_id = node["id"]
-            G.add_node(node_id, **node)
-        for edge in edges_data:
-            G.add_edge(edge['source'], edge['target'], **edge)
-    add_nodes_and_edges()
-    return G, nodes_data, edges_data
+    for node in nodes_data:
+        node_id = node["id"]
+        G.add_node(node_id, **node)
+    for edge in edges_data:
+        G.add_edge(edge['source'], edge['target'], **edge)
+    return G
 
 
 #method to get direction
-def get_directions(graph, start, end):
+def get_directions(start, end):
+    graph = build_graph()
     path = shortest_route(graph, start, end)
     if path is None:
         return "No path found"
