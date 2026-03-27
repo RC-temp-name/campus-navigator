@@ -3,6 +3,8 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 from pathlib import Path
+#modular grapgh
+G = None
 
 # read the JSON files
 def read_json_files():
@@ -41,7 +43,10 @@ def build_graph():
     for edge in edges_data:
         G.add_edge(edge['source'], edge['target'], **edge)
     return G
-
+#should be used when graph is updated, to reload the graph with new data
+def reload_graph():
+    global G
+    G = build_graph()
 
 def shortest_route(graph, start, end):
     try:
@@ -52,17 +57,17 @@ def shortest_route(graph, start, end):
 
 #method to get direction
 def get_directions(start, end):
-    graph = build_graph()
-    path = shortest_route(graph, start, end)
+    global G
+    path = shortest_route(G, start, end)
     if path is None:
         return "No path found"
     directions = []
     coordinates = []
     #grabs directions
     for i in range(len(path) - 1):
-        edge_data = graph.get_edge_data(path[i], path[i + 1])
+        edge_data = G.get_edge_data(path[i], path[i + 1])
         directions.append(edge_data['instruction'])
-        coordinates.append(graph.nodes[path[i]]['coords'])
+        coordinates.append(G.nodes[path[i]]['coords'])
     #if start and end are the same, add a message to directions
     if (start == end):
         directions.append("You are already at your destination.")
@@ -70,6 +75,7 @@ def get_directions(start, end):
 
 #builds photo of the graph
 def main():
+    global G
     nodes_data, _ = read_json_files()
     G = build_graph()
     # print(f"Successfully built graph!")
