@@ -55,19 +55,44 @@ def get_directions(start, end):
     graph = build_graph()
     path = shortest_route(graph, start, end)
     if path is None:
-        return "No path found"
+        return f"No path found from {start} to {end}."
     directions = []
     coordinates = []
-    #grabs directions
-    for i in range(len(path) - 1):
-        edge_data = graph.get_edge_data(path[i], path[i + 1])
-        directions.append(edge_data['instruction'])
-        coordinates.append(graph.nodes[path[i]]['coords'])
-    #if start and end are the same, add a message to directions
-    if (start == end):
-        directions.append("You are already at your destination.")
-    return directions, coordinates
+    for i in range(len(path)):
+        current_node_id = path[i]
+        current_node = graph.nodes[current_node_id]
 
+        coordinates.append({
+            "x": current_node["coords"][0],
+            "y": current_node["coords"][1],
+            "floor": current_node["floor"]
+        })
+
+        if i == len(path)-1:
+            break
+
+        next_node_id = path[i+1]
+        next_node = graph.nodes[next_node_id]
+        edge_data = graph.get_edge_data(current_node_id, next_node_id)
+
+        #Detects when route changes floors
+        #Staircases are treated as nodes and act as a transition point between floors, so we can check if the next node is a staircase and if the floor changes
+
+        if current_node["floor"] != next_node["floor"]:
+            if current_node.get("type") == "staircase" or next_node.get("type") == "staircase":
+                directions.append(f"Take the stairs from floor {current_node['floor']} to floor {next_node['floor']}.")
+            else:
+                directions.append(f"Move from floor {current_node['floor']} to floor {next_node['floor']}.")
+        else:
+            directions.append(edge_data["instructions"])
+            
+        if start == end:
+            directions.append("You are already at your destination.")
+        
+        return {
+            "directions": directions,
+            "coordinates": coordinates
+        }
 #builds photo of the graph
 def main():
     nodes_data, _ = read_json_files()
