@@ -75,7 +75,8 @@ def main():
     # print(f"Successfully built graph!")
     # print(f"Nodes: {G.number_of_nodes()}")
     # print(f"Edges: {G.number_of_edges()}")
-    pos = {node["id"]: tuple(node["coords"]) for node in nodes_data}
+    pos = {node["id"]: tuple(node["coords"]) for node in nodes_data
+           if node.get("coords") and node["coords"][0] is not None}
     nx.draw(G, pos, with_labels=True, node_color='skyblue', node_size=2000, edge_color='black', font_size=10, font_weight='bold', arrowsize=20)
     #plt.show()
     plt.savefig("map_preview.png")
