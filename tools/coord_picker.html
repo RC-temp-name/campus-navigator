@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Coordinate Picker — Campus Navigator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: #1a1a2e; color: #eee; display: flex; flex-direction: column; height: 100vh; }
+
+    #toolbar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 16px; background: #16213e; border-bottom: 1px solid #0f3460;
+      flex-shrink: 0; flex-wrap: wrap;
+    }
+    #toolbar h1 { font-size: 1rem; color: #e94560; margin-right: 8px; }
+    #toolbar label { font-size: 0.85rem; color: #aaa; }
+    #toolbar input[type=file] { font-size: 0.8rem; }
+    #toolbar input[type=text] { padding: 4px 8px; border-radius: 4px; border: 1px solid #0f3460; background: #0f3460; color: #eee; font-size: 0.85rem; width: 220px; }
+    button { padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
+    #btn-load-nodes { background: #0f3460; color: #eee; }
+    #btn-save { background: #e94560; color: #fff; }
+    #btn-save:disabled { background: #555; cursor: default; }
+    #status { font-size: 0.8rem; color: #aaa; margin-left: auto; }
+
+    #main { display: flex; flex: 1; overflow: hidden; }
+
+    #canvas-wrap {
+      position: relative; flex: 1; overflow: auto; background: #111;
+      cursor: crosshair;
+    }
+    #floorplan { display: block; }
+    #overlay { position: absolute; top: 0; left: 0; pointer-events: none; }
+
+    #sidebar {
+      width: 280px; flex-shrink: 0; background: #16213e;
+      border-left: 1px solid #0f3460; overflow-y: auto; padding: 10px;
+    }
+    #sidebar h2 { font-size: 0.9rem; color: #e94560; margin-bottom: 8px; }
+    .node-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 5px 6px; border-radius: 4px; margin-bottom: 4px;
+      background: #0f3460; font-size: 0.8rem; cursor: pointer;
+    }
+    .node-item:hover { background: #1a4a80; }
+    .node-item.selected { background: #e94560; }
+    .node-item .node-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .node-item .node-coords { font-size: 0.7rem; color: #aaa; margin-left: 6px; white-space: nowrap; }
+    .node-item.placed .node-coords { color: #4caf50; }
+
+    #instructions {
+      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.75); color: #fff; padding: 8px 18px;
+      border-radius: 20px; font-size: 0.8rem; pointer-events: none;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div id="toolbar">
+  <h1>Coord Picker</h1>
+
+  <label>Floor plan image:
+    <input type="file" id="img-input" accept="image/*" />
+  </label>
+
+  <label>nodes.json:
+    <input type="file" id="json-input" accept=".json" />
+  </label>
+
+  <label>Filter building:
+    <input type="text" id="filter-building" placeholder="e.g. NPB (leave blank for all)" />
+  </label>
+
+  <button id="btn-load-nodes">Load</button>
+  <button id="btn-save" disabled>Save nodes.json</button>
+
+  <span id="status">No files loaded.</span>
+</div>
+
+<div id="main">
+  <div id="canvas-wrap">
+    <img id="floorplan" src="" alt="" />
+    <canvas id="overlay"></canvas>
+  </div>
+
+  <div id="sidebar">
+    <h2>Nodes <span id="node-count"></span></h2>
+    <div id="node-list"></div>
+  </div>
+</div>
+
+<div id="instructions">Click on the map to place the selected node.</div>
+
+<script>
+  let nodes = [];
+  let selectedIndex = null;
+  let imgLoaded = false;
+
+  const imgEl = document.getElementById('floorplan');
+  const canvas = document.getElementById('overlay');
+  const ctx = canvas.getContext('2d');
+  const canvasWrap = document.getElementById('canvas-wrap');
+  const nodeList = document.getElementById('node-list');
+  const nodeCount = document.getElementById('node-count');
+  const status = document.getElementById('status');
+  const instructions = document.getElementById('instructions');
+  const btnSave = document.getElementById('btn-save');
+  const filterInput = document.getElementById('filter-building');
+
+  // Load floor plan image
+  document.getElementById('img-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    imgEl.onload = () => {
+      canvas.width = imgEl.naturalWidth;
+      canvas.height = imgEl.naturalHeight;
+      canvas.style.width = imgEl.offsetWidth + 'px';
+      canvas.style.height = imgEl.offsetHeight + 'px';
+      imgLoaded = true;
+      redraw();
+      setStatus(`Image loaded: ${imgEl.naturalWidth}×${imgEl.naturalHeight}px`);
+    };
+    imgEl.src = url;
+  });
+
+  // Resize canvas when image dimensions change (e.g. after load)
+  new ResizeObserver(() => {
+    if (imgLoaded) {
+      canvas.style.width = imgEl.offsetWidth + 'px';
+      canvas.style.height = imgEl.offsetHeight + 'px';
+    }
+  }).observe(imgEl);
+
+  // Load nodes.json
+  document.getElementById('json-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        nodes = JSON.parse(ev.target.result);
+        renderList();
+        redraw();
+        btnSave.disabled = false;
+        setStatus(`Loaded ${nodes.length} nodes.`);
+      } catch {
+        alert('Failed to parse nodes.json');
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  document.getElementById('btn-load-nodes').addEventListener('click', () => {
+    const building = filterInput.value.trim();
+    renderList(building);
+    redraw();
+  });
+
+  filterInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('btn-load-nodes').click();
+  });
+
+  // Click on canvas to place node
+  canvasWrap.addEventListener('click', (e) => {
+    if (selectedIndex === null || !imgLoaded) return;
+    const rect = imgEl.getBoundingClientRect();
+    const wrapRect = canvasWrap.getBoundingClientRect();
+    // Pixel coords relative to the actual image (accounting for scroll and display scale)
+    const scaleX = imgEl.naturalWidth / imgEl.offsetWidth;
+    const scaleY = imgEl.naturalHeight / imgEl.offsetHeight;
+    const x = Math.round((e.clientX - rect.left) * scaleX);
+    const y = Math.round((e.clientY - rect.top) * scaleY);
+
+    nodes[selectedIndex].coords = [x, y];
+    renderList(filterInput.value.trim());
+    redraw();
+    setStatus(`Placed ${nodes[selectedIndex].id} at [${x}, ${y}]`);
+  });
+
+  function renderList(buildingFilter) {
+    nodeList.innerHTML = '';
+    const filter = (buildingFilter || '').toLowerCase();
+    nodes.forEach((node, i) => {
+      if (filter && (node.building || '').toLowerCase() !== filter) return;
+      const div = document.createElement('div');
+      div.className = 'node-item' +
+        (i === selectedIndex ? ' selected' : '') +
+        (node.coords && (node.coords[0] !== 0 || node.coords[1] !== 0) ? ' placed' : '');
+      div.innerHTML = `
+        <span class="node-label" title="${node.id}">${node.name || node.id}</span>
+        <span class="node-coords">[${node.coords ? node.coords.join(', ') : '0, 0'}]</span>
+      `;
+      div.addEventListener('click', () => {
+        selectedIndex = i;
+        renderList(buildingFilter);
+        redraw();
+        scrollToNode(i);
+        instructions.style.display = 'block';
+      });
+      nodeList.appendChild(div);
+    });
+    nodeCount.textContent = `(${nodes.length})`;
+  }
+
+  function scrollToNode(index) {
+    if (!imgLoaded) return;
+    const node = nodes[index];
+    if (!node.coords) return;
+    const [px, py] = node.coords;
+    const scaleX = imgEl.offsetWidth / imgEl.naturalWidth;
+    const scaleY = imgEl.offsetHeight / imgEl.naturalHeight;
+    const sx = px * scaleX - canvasWrap.clientWidth / 2;
+    const sy = py * scaleY - canvasWrap.clientHeight / 2;
+    canvasWrap.scrollTo({ left: sx, top: sy, behavior: 'smooth' });
+  }
+
+  function redraw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const filter = filterInput.value.trim().toLowerCase();
+    nodes.forEach((node, i) => {
+      if (filter && (node.building || '').toLowerCase() !== filter) return;
+      const [x, y] = node.coords || [0, 0];
+      const isPlaced = x !== 0 || y !== 0;
+      const isSelected = i === selectedIndex;
+
+      ctx.beginPath();
+      ctx.arc(x, y, isSelected ? 10 : 7, 0, Math.PI * 2);
+      ctx.fillStyle = isSelected ? '#e94560' : (isPlaced ? '#4caf50' : '#ffaa00');
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.font = `${isSelected ? 'bold ' : ''}13px sans-serif`;
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+      ctx.lineWidth = 3;
+      ctx.textAlign = 'center';
+      const label = node.name || node.id;
+      ctx.strokeText(label, x, y - 14);
+      ctx.fillText(label, x, y - 14);
+      ctx.textAlign = 'left';
+    });
+  }
+
+  // Save updated nodes.json
+  btnSave.addEventListener('click', async () => {
+    const json = JSON.stringify(nodes, null, 2);
+    if (window.showSaveFilePicker) {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: 'nodes.json',
+          types: [{ description: 'JSON file', accept: { 'application/json': ['.json'] } }],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(json);
+        await writable.close();
+        setStatus(`Saved to ${handle.name}.`);
+      } catch (err) {
+        if (err.name !== 'AbortError') setStatus('Save failed: ' + err.message);
+      }
+    } else {
+      // Fallback for Firefox
+      const blob = new Blob([json], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'nodes.json';
+      a.click();
+      setStatus('nodes.json downloaded.');
+    }
+  });
+
+  function setStatus(msg) {
+    status.textContent = msg;
+  }
+</script>
+</body>
+</html>
