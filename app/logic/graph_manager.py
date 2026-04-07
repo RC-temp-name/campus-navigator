@@ -77,7 +77,25 @@ def main():
     # print(f"Edges: {G.number_of_edges()}")
     pos = {node["id"]: tuple(node["coords"]) for node in nodes_data
            if node.get("coords") and node["coords"][0] is not None}
-    nx.draw(G, pos, with_labels=True, node_color='skyblue', node_size=2000, edge_color='black', font_size=10, font_weight='bold', arrowsize=20)
+    positioned_nodes = list(pos.keys())
+    positioned_edges = [
+        (source, target)
+        for source, target in G.edges()
+        if source in pos and target in pos
+    ]
+    nx.draw(
+        G,
+        pos,
+        nodelist=positioned_nodes,
+        edgelist=positioned_edges,
+        with_labels=True,
+        node_color='skyblue',
+        node_size=2000,
+        edge_color='black',
+        font_size=10,
+        font_weight='bold',
+        arrowsize=20
+    )
     #plt.show()
     plt.savefig("map_preview.png")
     print("Map saved as map_preview.png - check your file list!")
