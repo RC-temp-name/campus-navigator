@@ -331,7 +331,7 @@
 
   function tryUpdateFloorMeta() {
     if (!floorsData) return;
-    const b = filterBuilding.value.trim() || 'NPB';
+    const b = (filterBuilding.value.trim() || 'NPB').toUpperCase();
     const f = filterFloor.value.trim() || '5';
     if (floorsData[b] && floorsData[b][f]) {
       floorMeta = floorsData[b][f];
