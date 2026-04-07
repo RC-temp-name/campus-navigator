@@ -56,6 +56,21 @@ def shortest_route(graph, start, end):
         return None
 
 
+def get_options():
+    nodes_data, _ = read_json_files()
+    entrances = [
+        {"id": n["id"], "name": n["name"]}
+        for n in nodes_data
+        if n["type"] in ("elevator", "staircase")
+    ]
+    classrooms = [
+        {"id": n["id"], "name": n["name"]}
+        for n in nodes_data
+        if n["type"] == "room"
+    ]
+    return entrances, classrooms
+
+
 #method to get direction
 def get_directions(start, end):
     

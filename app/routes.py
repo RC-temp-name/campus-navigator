@@ -1,11 +1,12 @@
 from flask import Blueprint, render_template, jsonify, request
-from app.logic import get_directions
+from app.logic import get_directions, get_options
 
 bp = Blueprint('main', __name__)
 
 @bp.route('/', methods=['GET'])
 def index():
-    return render_template('index.html')
+    entrances, classrooms = get_options()
+    return render_template('index.html', entranceOptions=entrances, classroomOptions=classrooms)
 
 @bp.route('/directions', methods=['POST'])
 def directions():
@@ -25,7 +26,9 @@ def directions():
                 steps, coordinates = result
         except RuntimeError as e:
             error = str(e)
-    return render_template('index.html', steps=steps, coordinates=coordinates, error=error)
+    entrances, classrooms = get_options()
+    return render_template('index.html', steps=steps, coordinates=coordinates, error=error,
+                           entranceOptions=entrances, classroomOptions=classrooms)
 
 @bp.route('/api/test')
 def test():
