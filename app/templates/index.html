@@ -12,7 +12,7 @@
         <label for="entrance">Select Entrance Option:</label>
         <select id="entrance" name="entrance">
             {% for opt in entranceOptions %}
-                <option value="{{ opt }}">{{ opt }}</option>
+                <option value="{{ opt.id }}">{{ opt.name }}</option>
             {% endfor %}
         </select>
 
@@ -21,7 +21,7 @@
         <label for="classroom">Select Classroom Option:</label>
         <select id="classroom" name="classroom">
             {% for opt in classroomOptions %}
-                <option value="{{ opt }}">{{ opt }}</option>
+                <option value="{{ opt.id }}">{{ opt.name }}</option>
             {% endfor %}
         </select>
 

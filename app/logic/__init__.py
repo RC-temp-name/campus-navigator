@@ -1,3 +1,3 @@
-from .graph_manager import get_directions
+from .graph_manager import get_directions, get_options
 
-__all__ = ["get_directions"]
+__all__ = ["get_directions", "get_options"]
