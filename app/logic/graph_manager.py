@@ -47,7 +47,7 @@ def build_graph():
 def reload_graph():
     global G
     G = build_graph()
-    print("reloaded")
+    
 
 def shortest_route(graph, start, end):
     try:
