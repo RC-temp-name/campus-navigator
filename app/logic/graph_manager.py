@@ -113,11 +113,11 @@ def get_directions(start, end):
             
         if start == end:
             directions.append("You are already at your destination.")
-        
-        return {
-            "directions": directions,
-            "coordinates": coordinates
-        }
+
+    return {
+        "directions": directions,
+        "coordinates": coordinates
+    }
 #builds photo of the graph
 def main():
     global G
