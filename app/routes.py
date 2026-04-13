@@ -1,11 +1,12 @@
 from flask import Blueprint, render_template, jsonify, request
-from app.logic import get_directions
+from app.logic import get_directions, get_options
 
 bp = Blueprint('main', __name__)
 
 @bp.route('/', methods=['GET'])
 def index():
-    return render_template('index.html')
+    entrances, classrooms = get_options()
+    return render_template('index.html', entranceOptions=entrances, classroomOptions=classrooms)
 
 @bp.route('/directions', methods=['POST'])
 def directions():
@@ -19,15 +20,18 @@ def directions():
     else:
         try:
             result = get_directions(entrance, classroom)
-            if result == "No path found":
+            if isinstance(result, str):
                 error = 'No route could be found between the selected entrance and destination. Please check your selections and try again.'
             else:
-                steps, coordinates = result
+                steps = result["directions"]
+                coordinates = result["coordinates"]
         except RuntimeError as e:
             error = str(e)
-    return render_template('index.html', steps=steps, coordinates=coordinates, error=error)
+    entrances, classrooms = get_options()
+    return render_template('index.html', steps=steps, coordinates=coordinates, error=error,
+                           entranceOptions=entrances, classroomOptions=classrooms)
 
 @bp.route('/api/test')
 def test():
-    directions = get_directions("room_101", "room_102")
+    directions = get_directions("NPB_5_E1", "NPB_5_154")
     return jsonify(directions)

@@ -3,6 +3,8 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 from pathlib import Path
+# modular graph
+G = None
 
 
 # Distance + Weight Computation
@@ -66,7 +68,11 @@ def build_graph():
     for edge in edges_data:
         G.add_edge(edge['source'], edge['target'], **edge)
     return G
-
+#should be used when graph is updated, to reload the graph with new data
+def reload_graph():
+    global G
+    G = build_graph()
+    
 
 def shortest_route(graph, start, end):
     try:
@@ -75,33 +81,93 @@ def shortest_route(graph, start, end):
         return None
 
 
+def get_options():
+    nodes_data, _ = read_json_files()
+    entrances = [
+        {"id": n["id"], "name": n["name"]}
+        for n in nodes_data
+        if n["type"] in ("elevator", "staircase")
+    ]
+    classrooms = [
+        {"id": n["id"], "name": n["name"]}
+        for n in nodes_data
+        if n["type"] == "room"
+    ]
+    return entrances, classrooms
+
+
 #method to get direction
 def get_directions(start, end):
-    graph = build_graph()
-    path = shortest_route(graph, start, end)
+    
+    global G
+    if G is None:
+        reload_graph()
+    
+    path = shortest_route(G, start, end)
     if path is None:
-        return "No path found"
+        return f"No path found from {start} to {end}."
     directions = []
     coordinates = []
-    #grabs directions
-    for i in range(len(path) - 1):
-        edge_data = graph.get_edge_data(path[i], path[i + 1])
-        directions.append(edge_data['instruction'])
-        coordinates.append(graph.nodes[path[i]]['coords'])
-    #if start and end are the same, add a message to directions
-    if (start == end):
+    if start == end:
         directions.append("You are already at your destination.")
-    return directions, coordinates
+        current_node = G.nodes[start]
+        coordinates.append({"x": current_node["coords"][0], "y": current_node["coords"][1], "floor": current_node["floor"]})
+        return {"directions": directions, "coordinates": coordinates}
+    for i in range(len(path)):
+        current_node_id = path[i]
+        current_node = G.nodes[current_node_id]
 
+        coordinates.append({
+            "x": current_node["coords"][0],
+            "y": current_node["coords"][1],
+            "floor": current_node["floor"]
+        })
+
+        if i == len(path)-1:
+            break
+
+        next_node_id = path[i+1]
+        next_node = G.nodes[next_node_id]
+        edge_data = G.get_edge_data(current_node_id, next_node_id)
+
+        #Detects when route changes floors
+        #Staircases are treated as nodes and act as a transition point between floors, so we can check if the next node is a staircase and if the floor changes
+
+        if current_node["floor"] != next_node["floor"]:
+            if current_node.get("type") == "staircase" or next_node.get("type") == "staircase":
+                directions.append(f"Take the stairs from floor {current_node['floor']} to floor {next_node['floor']}.")
+            else:
+                directions.append(f"Move from floor {current_node['floor']} to floor {next_node['floor']}.")
+        else:
+            directions.append(edge_data["instruction"])
+
+    return {
+        "directions": directions,
+        "coordinates": coordinates
+    }
 #builds photo of the graph
 def main():
+    global G
     nodes_data, _ = read_json_files()
     G = build_graph()
     # print(f"Successfully built graph!")
     # print(f"Nodes: {G.number_of_nodes()}")
     # print(f"Edges: {G.number_of_edges()}")
-    pos = {node["id"]: tuple(node["coords"]) for node in nodes_data}
-    nx.draw(G, pos, with_labels=True, node_color='skyblue', node_size=2000, edge_color='black', font_size=10, font_weight='bold', arrowsize=20)
+    pos = {node["id"]: tuple(node["coords"]) for node in nodes_data
+           if node.get("coords") and node["coords"][0] is not None}
+    positioned_nodes = list(pos.keys())
+    G_subgraph = G.subgraph(positioned_nodes).copy()
+    nx.draw(
+        G_subgraph,
+        pos,
+        with_labels=True,
+        node_color='skyblue',
+        node_size=2000,
+        edge_color='black',
+        font_size=10,
+        font_weight='bold',
+        arrowsize=20
+    )
     #plt.show()
     plt.savefig("map_preview.png")
     print("Map saved as map_preview.png - check your file list!")
@@ -109,7 +175,7 @@ def main():
 
     # #calcs shortest path between room_101 and room_102
     # print(shortest_route('room_101', 'room_102'))
-    print(get_directions('room_102', 'room_101'))
+    print(get_directions('NPB_5_102', 'NPB_5_E1'))
 
 if __name__ == "__main__":
     main()
