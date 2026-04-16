@@ -1,14 +1,17 @@
 from flask import Blueprint, render_template, jsonify, request
+from flask_login import login_required
 from app.logic import get_directions, get_options
 
-bp = Blueprint('main', __name__)
+bp = Blueprint('events', __name__)
 
 @bp.route('/', methods=['GET'])
+@login_required
 def index():
     entrances, classrooms = get_options()
     return render_template('index.html', entranceOptions=entrances, classroomOptions=classrooms)
 
 @bp.route('/directions', methods=['POST'])
+@login_required
 def directions():
     steps = None
     coordinates = None
