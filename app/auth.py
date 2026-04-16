@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_user, logout_user, login_required
-from werkzeug.security import check_password_hash
+from werkzeug.security import check_password_hash, generate_password_hash
 from app.models import db, User
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
@@ -24,3 +24,19 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for("auth.login"))
+
+
+@bp.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "")
+        if User.query.filter_by(email=email).first():
+            flash("An account with that email already exists.")
+        else:
+            user = User(email=email, password_hash=generate_password_hash(password))
+            db.session.add(user)
+            db.session.commit()
+            login_user(user)
+            return redirect(url_for("events.index"))
+    return render_template("register.html")

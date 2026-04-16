@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>MiniMap - Login</title>
+    <title>MiniMap - Register</title>
 </head>
 <body>
-    <h1>Login</h1>
+    <h1>Create Account</h1>
 
     {% with messages = get_flashed_messages() %}
         {% if messages %}
@@ -17,7 +17,7 @@
         {% endif %}
     {% endwith %}
 
-    <form method="post" action="/auth/login">
+    <form method="post" action="/auth/register">
         <label for="email">Email:</label>
         <input type="email" id="email" name="email" required>
 
@@ -28,9 +28,9 @@
 
         <br><br>
 
-        <button type="submit">Login</button>
+        <button type="submit">Create Account</button>
     </form>
 
-    <p>Don't have an account? <a href="/auth/register">Create one</a></p>
+    <p>Already have an account? <a href="/auth/login">Login</a></p>
 </body>
 </html>
