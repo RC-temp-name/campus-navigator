@@ -1,8 +1,24 @@
-# irrelevant mac related file
+# macOS junk
 .DS_Store
 
-# python cache files
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Virtual environments
+.venv/
+venv/
+
+# uv build artifacts
+uv.lock
+
+# Flask instance folder (if used)
+instance/
+
+# VS Code settings
+.vscode/
+
+# Byte-compiled / optimized / DLL files
+*.so
