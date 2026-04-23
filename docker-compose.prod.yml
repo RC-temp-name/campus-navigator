@@ -1,0 +1,6 @@
+services:
+  minimap:
+    command: ["uv", "run", "gunicorn", "--workers", "4", "--bind", "0.0.0.0:5000", "run:app"]
+    volumes: []
+    environment:
+      - FLASK_ENV=production

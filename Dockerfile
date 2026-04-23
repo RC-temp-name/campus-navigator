@@ -12,4 +12,4 @@ RUN uv sync --frozen
 
 EXPOSE 5000
 
-CMD ["uv", "run", "flask", "--app", "run", "run", "--host", "0.0.0.0"]
+CMD ["uv", "run", "gunicorn", "--workers", "4", "--bind", "0.0.0.0:5000", "run:app"]
