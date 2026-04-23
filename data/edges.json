@@ -1078,5 +1078,17 @@
     "target": "NPB_4_S2",
     "weight": 20,
     "instruction": "Take the stairs to floor 4."
+  },
+  {
+    "source": "NPB_4_E1",
+    "target": "NPB_4_waypoint_1",
+    "weight": 12,
+    "instruction": "Continue toward Elevator Waypoint."
+  },
+  {
+    "source": "NPB_4_waypoint_1",
+    "target": "NPB_4_E1",
+    "weight": 12,
+    "instruction": "Continue toward 4.E1."
   }
 ]
