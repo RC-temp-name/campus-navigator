@@ -78,7 +78,11 @@ def generate_edges(connectors):
         if node_type == "elevator":
             pairs = list(itertools.combinations(floors, 2))
         else:
-            pairs = list(zip(floors, floors[1:]))
+            pairs = [
+                (floor_a, floor_b)
+                for floor_a, floor_b in zip(floors, floors[1:])
+                if floor_b == floor_a + 1
+            ]
 
         for floor_a, floor_b in pairs:
             id_a = f"{building}_{floor_a}_{suffix}"
