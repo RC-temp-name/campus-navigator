@@ -522,8 +522,8 @@
     "type": "room",
     "building": "NPB",
     "coords": [
-      0,
-      0
+      -62,
+      10
     ],
     "floor": 4
   },
@@ -852,8 +852,8 @@
     "type": "spine",
     "building": "NPB",
     "coords": [
-      0,
-      0
+      -111,
+      12
     ],
     "floor": 4
   },
