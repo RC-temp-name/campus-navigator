@@ -198,35 +198,33 @@ def format_instruction(turn, next_id, G, is_final=False):
 
 
 def filter_straights(path, directions, coordinates, turn_types, G):
-    """Remove redundant "straight" instructions that occur when passing through spine nodes.
-    A "straight" instruction is considered redundant if it leads into a spine node,
-and the next instruction after that spine node is also "straight". In such cases,
-both the "straight" instruction and the coordinate of the spine node can be omitted,"""
     if not directions:
         return directions, coordinates
 
     filtered_dirs = []
-    filtered_coords = [coordinates[0]]  # always keep the start coordinate
+    filtered_coords = [coordinates[0]]
 
     for i in range(len(directions)):
         if turn_types[i] == "straight":
-            # direction[i] covers edge path[i] -> path[i+1]
             next_id = path[i + 1]
             node = G.nodes[next_id]
             is_spine = "_spine_" in next_id or node.get("type") == "spine"
-            if is_spine:
-                continue  # drop spine straight + its end coordinate
+            is_waypoint = node.get("type") == "waypoint"
+
+            if is_spine or is_waypoint:
+                # Only drop if the NEXT step is also straight (true redundancy)
+                next_turn = turn_types[i + 1] if i + 1 < len(turn_types) else None
+                if next_turn == "straight":
+                    continue  # redundant — skip it
 
         filtered_dirs.append(directions[i])
         filtered_coords.append(coordinates[i + 1])
 
-    # guarantee the destination coordinate is present
     dest_coord = coordinates[-1]
     if not filtered_coords or filtered_coords[-1] != dest_coord:
         filtered_coords.append(dest_coord)
 
     return filtered_dirs, filtered_coords
-
 
 # ---------------------------------------------------------------------------
 # Main direction builder
