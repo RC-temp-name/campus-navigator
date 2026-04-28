@@ -13,6 +13,27 @@
       "image": null,
       "px_per_foot": null,
       "origin_px": null
+    },
+    "3": {
+      "width_feet": 300,
+      "height_feet": 60,
+      "image": null,
+      "px_per_foot": null,
+      "origin_px": null
+    },
+    "2": {
+      "width_feet": 300,
+      "height_feet": 60,
+      "image": null,
+      "px_per_foot": null,
+      "origin_px": null
+    },
+    "1": {
+      "width_feet": 300,
+      "height_feet": 60,
+      "image": null,
+      "px_per_foot": null,
+      "origin_px": null
     }
   }
 }
