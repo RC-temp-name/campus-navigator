@@ -24,18 +24,6 @@
     "instruction": "Enter room 5.102."
   },
   {
-    "source": "NPB_5_spine_1",
-    "target": "NPB_5_waypoint_1",
-    "weight": 14,
-    "instruction": "Continue toward Elevator Waypoint."
-  },
-  {
-    "source": "NPB_5_waypoint_1",
-    "target": "NPB_5_spine_1",
-    "weight": 14,
-    "instruction": "Continue toward spine 1."
-  },
-  {
     "source": "NPB_5_waypoint_1",
     "target": "NPB_5_spine_2",
     "weight": 8,

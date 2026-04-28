@@ -1032,5 +1032,27 @@
       14.25
     ],
     "floor": 5
+  },
+  {
+    "id": "NPB_5_E2",
+    "name": "5.E2",
+    "type": "elevator",
+    "building": "NPB",
+    "coords": [
+      0,
+      6.5
+    ],
+    "floor": 5
+  },
+  {
+    "id": "NPB_5_spine_22",
+    "name": "spine 22",
+    "type": "spine",
+    "building": "NPB",
+    "coords": [
+      5,
+      6.25
+    ],
+    "floor": 5
   }
 ]
