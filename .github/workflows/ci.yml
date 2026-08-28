@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v4
+
+      - name: "Install just"
+        uses: extractions/setup-just@v3
+
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: "Install python"
+        run: uv python install
+
+        # installs exactly the committed uv.lock and errors if it's out
+        # of date with pyproject.toml.
+      - name: "Install dependencies"
+        run: uv sync --locked
+
+      - name: "Lint Check"
+        run: just lint
+
+      - name: "Format Check"
+        run: just format-check
+
+      - name: "Tests"
+        run: just test

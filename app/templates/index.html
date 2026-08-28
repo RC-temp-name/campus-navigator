@@ -1,96 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>MiniMap - Dropdowns</title>
-
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
-
-    <!-- CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-</head>
-<body>
-    <div class="container">
-        <div class="left-panel">
-            <h1>Choose Your Options</h1>
-
-    <form method="post" action="/directions">
-
-        <label for="entrance">Select Entrance Option:</label>
-        <select id="entrance" name="entrance">
-            {% for opt in entranceOptions %}
-                <option value="{{ opt.id }}">{{ opt.name }}</option>
-            {% endfor %}
-        </select>
-
-        <br><br>
-
-        <label for="classroom">Select Classroom Option:</label>
-        <select id="classroom" name="classroom">
-            {% for opt in classroomOptions %}
-                <option value="{{ opt.id }}">{{ opt.name }}</option>
-            {% endfor %}
-        </select>
-
-        <br><br>
-
-        <button type="/directions">Get Directions</button>
-
-        <div style="height: 30px;"></div>
-
-        <div class="radio-group">
-            <strong>Route:</strong>
-            <label class="radio-option">
-                <input type="radio" name="routePref" value="elevator"> Elevator
-            </label>
-            <label class="radio-option">
-                <input type="radio" name="routePref" value="stairs"> Stairs
-            </label>
-            <label class="radio-option">
-                <input type="radio" name="routePref" value="none" checked> No Preference
-            </label>
-        </div>
-
-    {% if error %}
-     <div class="error-box">
-        <p style = "color: red">{{ error }}</p>
-     </div>
-    {% endif %}
-
-    {% if steps %}
-        <div id="directions-panel" class="directions-box">
-        <h2>Directions</h2>
-    
-     <div id="directions-card-container"></div>
-
-        <script>
-            const directionSteps= {{  steps | tojson }};
-        </script>
-
-        <script src="{{ url_for('static', filename='js/directions.js')}}"></script>
-    </div>
-    
-    {% endif %}
-        </div>
-    <div class="right-panel">
-    {% if coordinates %}
-        
-        <div id="map"></div>
-        <script>
+    <head>
+        <meta charset="UTF-8">
+        <title>MiniMap - Dropdowns</title>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+        <!-- CSS -->
+        <link rel="stylesheet"
+              href="{{ url_for('static', filename='css/styles.css') }}">
+    </head>
+    <body>
+        <div class="container">
+            <div class="left-panel">
+                <h1>Choose Your Options</h1>
+                <form method="post" action="/directions">
+                    <label for="entrance">Select Entrance Option:</label>
+                    <select id="entrance" name="entrance">
+                        {% for opt in entranceOptions %}
+                            <option value="{{ opt.id }}">{{ opt.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <br>
+                    <br>
+                    <label for="classroom">Select Classroom Option:</label>
+                    <select id="classroom" name="classroom">
+                        {% for opt in classroomOptions %}
+                            <option value="{{ opt.id }}">{{ opt.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <br>
+                    <br>
+                    <button type="/directions">Get Directions</button>
+                    <div style="height: 30px;"></div>
+                    <div class="radio-group">
+                        <strong>Route:</strong>
+                        <label class="radio-option">
+                            <input type="radio" name="routePref" value="elevator">
+                            Elevator
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="routePref" value="stairs">
+                            Stairs
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="routePref" value="none" checked>
+                            No Preference
+                        </label>
+                    </div>
+                    {% if error %}
+                        <div class="error-box">
+                            <p style = "color: red">{{ error }}</p>
+                        </div>
+                    {% endif %}
+                    {% if steps %}
+                        <div id="directions-panel" class="directions-box">
+                            <h2>Directions</h2>
+                            <div id="directions-card-container"></div>
+                            <script>const directionSteps= {{  steps | tojson }};</script>
+                            <script src="{{ url_for('static', filename='js/directions.js')}}"></script>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="right-panel">
+                    {% if coordinates %}
+                        <div id="map"></div>
+                        <script>
             window.routeCoordinates = {{ coordinates | tojson }};
             window.floorBounds = {{ floor_bounds | tojson }};
-        </script>
-
-        <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-        <script src="{{ url_for('static', filename='js/map.js') }}"></script>
-    {% else %}
-        <div id="map" style="background: #f4f5f7; display: flex; align-items: center; justify-content: center;">
-                <p style="color: #999;">Map will appear here after you select directions</p>
+                        </script>
+                        <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+                        <script src="{{ url_for('static', filename='js/map.js') }}"></script>
+                    {% else %}
+                        <div id="map"
+                             style="background: #f4f5f7;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center">
+                            <p style="color: #999;">Map will appear here after you select directions</p>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
-    {% endif %}
-    </div>
-    </div>
-
-
-</body>
-</html>
+        </body>
+    </html>

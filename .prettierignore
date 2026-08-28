@@ -1,0 +1,11 @@
+# Paths Prettier should never touch
+app/templates/
+data/
+.venv/
+__pycache__/
+.ruff_cache/
+.pytest_cache/
+node_modules/
+*.md
+*.py
+uv.lock

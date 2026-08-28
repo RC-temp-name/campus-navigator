@@ -44,7 +44,9 @@ def discover_connectors(nodes):
     found = {}
     for node in nodes:
         node_id = node["id"]
-        parts = node_id.split("_", 2)  # e.g. ["NPB", "5", "E1"] or ["NPB", "4", "stairs_main"]
+        parts = node_id.split(
+            "_", 2
+        )  # e.g. ["NPB", "5", "E1"] or ["NPB", "4", "stairs_main"]
         if len(parts) < 3:
             continue
         suffix = parts[2]
@@ -65,7 +67,12 @@ def discover_connectors(nodes):
 
 
 def make_edge(source_id, target_id, weight, instruction):
-    return {"source": source_id, "target": target_id, "weight": weight, "instruction": instruction}
+    return {
+        "source": source_id,
+        "target": target_id,
+        "weight": weight,
+        "instruction": instruction,
+    }
 
 
 def generate_edges(connectors):
@@ -80,7 +87,7 @@ def generate_edges(connectors):
         else:
             pairs = [
                 (floor_a, floor_b)
-                for floor_a, floor_b in zip(floors, floors[1:])
+                for floor_a, floor_b in itertools.pairwise(floors, floors[1:])
                 if floor_b == floor_a + 1
             ]
 

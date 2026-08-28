@@ -1,791 +1,1178 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<meta charset="UTF-8" />
-<title>Coordinate Picker — Campus Navigator</title>
-<style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: sans-serif; background: #1a1a2e; color: #eee; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-
-  #toolbar {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 14px; background: #16213e; border-bottom: 1px solid #0f3460;
-    flex-shrink: 0; flex-wrap: wrap;
-  }
-  #toolbar h1 { font-size: 1rem; color: #e94560; margin-right: 8px; }
-  #toolbar label { font-size: 0.8rem; color: #aaa; white-space: nowrap; }
-  #toolbar input[type=file] { font-size: 0.75rem; }
-  #toolbar input[type=text], #toolbar input[type=number] {
-    padding: 4px 8px; border-radius: 4px; border: 1px solid #0f3460;
-    background: #0f3460; color: #eee; font-size: 0.8rem; width: 70px;
-  }
-  button {
-    padding: 5px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.82rem;
-    background: #0f3460; color: #eee; white-space: nowrap;
-  }
-  button.active { outline: 2px solid #e94560; }
-  #btn-save-nodes, #btn-save-floors { background: #e94560; color: #fff; }
-  #btn-save-nodes:disabled, #btn-save-floors:disabled { background: #555; cursor: default; }
-
-  #calibration-panel {
-    background: #0f2240; border-top: 1px solid #0f3460;
-    padding: 6px 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; flex-shrink: 0;
-  }
-  #calibration-panel h2 { font-size: 0.85rem; color: #e94560; margin-right: 4px; }
-  #calibration-panel label { font-size: 0.78rem; color: #aaa; }
-  #calibration-panel input[type=number] {
-    width: 75px; padding: 3px 6px; border-radius: 4px; border: 1px solid #0f3460;
-    background: #0f3460; color: #eee; font-size: 0.78rem;
-  }
-
-  #main { display: flex; flex: 1; overflow: hidden; }
-
-  #viewport {
-    position: relative; flex: 1; overflow: hidden; background: #fff;
-    cursor: crosshair; touch-action: none;
-  }
-  canvas { position: absolute; top: 0; left: 0; }
-
-  #sidebar {
-    width: 300px; flex-shrink: 0; background: #16213e;
-    border-left: 1px solid #0f3460; overflow-y: auto; padding: 10px;
-  }
-  #sidebar h2 { font-size: 0.9rem; color: #e94560; margin-bottom: 8px; }
-
-  select {
-    padding: 4px 8px; border-radius: 4px; border: 1px solid #0f3460;
-    background: #0f3460; color: #eee; font-size: 0.8rem;
-  }
-
-  .node-item {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 5px 6px; border-radius: 4px; margin-bottom: 4px;
-    background: #0f3460; font-size: 0.8rem; cursor: pointer;
-  }
-  .node-item:hover { background: #1a4a80; }
-  .node-item.selected { background: #e94560; }
-  .node-item.placed .node-coords { color: #4caf50; }
-  .node-item .node-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .node-item .node-coords { font-size: 0.7rem; color: #888; margin-left: 6px; white-space: nowrap; }
-
-  #status-bar {
-    background: #16213e; border-top: 1px solid #0f3460;
-    padding: 6px 14px; font-size: 0.8rem; color: #aaa; flex-shrink: 0;
-  }
-
-  #modal-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
-    display: none; align-items: center; justify-content: center; z-index: 100;
-  }
-  #modal {
-    background: #16213e; border: 1px solid #0f3460; border-radius: 6px;
-    padding: 16px; width: 320px; max-width: 90vw;
-  }
-  #modal h3 { font-size: 0.9rem; color: #e94560; margin-bottom: 10px; }
-  #modal label { font-size: 0.8rem; color: #aaa; }
-  #modal input {
-    width: 100%; padding: 6px; margin: 6px 0 12px 0;
-    border-radius: 4px; border: 1px solid #0f3460; background: #0f3460; color: #eee;
-  }
-  #modal .modal-buttons { display: flex; justify-content: flex-end; gap: 8px; }
-
-  #modal-overlay-add-node {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
-    display: none; align-items: center; justify-content: center; z-index: 100;
-  }
-  #modal-add-node {
-    background: #16213e; border: 1px solid #0f3460; border-radius: 6px;
-    padding: 16px; width: 320px; max-width: 90vw;
-  }
-  #modal-add-node h3 { font-size: 0.9rem; color: #e94560; margin-bottom: 10px; }
-  #modal-add-node label { font-size: 0.8rem; color: #aaa; display: block; margin-top: 6px; }
-  #modal-add-node input, #modal-add-node select {
-    width: 100%; padding: 6px; margin: 4px 0 8px 0;
-    border-radius: 4px; border: 1px solid #0f3460; background: #0f3460; color: #eee;
-  }
-  #modal-add-node .modal-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
-</style>
-</head>
-<body>
-
-<div id="toolbar">
-  <h1>Coord Picker</h1>
-  <label>Data folder: <input type="file" id="data-dir" webkitdirectory /></label>
-  <label>Image: <input type="file" id="img-input" accept="image/*" /></label>
-  <label>Building: <input type="text" id="filter-building" placeholder="NPB" value="NPB" /></label>
-  <label>Floor: <input type="number" id="filter-floor" placeholder="5" value="5" /></label>
-  <button id="btn-load">Load</button>
-  <button id="btn-save-nodes" disabled>Save nodes.json</button>
-  <button id="btn-save-floors" disabled>Save floors.json</button>
-  <button id="btn-add-spine">+ Add Spine</button>
-  <button id="btn-add-node">+ Add Node</button>
-</div>
-
-<div id="calibration-panel">
-  <h2>Calibration</h2>
-  <label>Origin X: <input type="number" step="0.5" id="origin-x" /></label>
-  <label>Origin Y: <input type="number" step="0.5" id="origin-y" /></label>
-  <label>px/ft: <input type="number" step="0.01" id="px-per-foot" /></label>
-  <button id="btn-set-origin">Set Origin</button>
-  <button id="btn-cal-node">Calibrate from Node</button>
-  <button id="btn-cal-dist">Calibrate with Distance</button>
-  <button id="btn-reset-cal">Reset Calibration</button>
-</div>
-
-<div id="main">
-  <div id="viewport">
-    <canvas id="main-canvas"></canvas>
-  </div>
-
-  <div id="sidebar">
-    <h2>Nodes <span id="node-count"></span></h2>
-    <div id="node-list"></div>
-  </div>
-</div>
-
-<div id="status-bar">Select the data/ folder to begin.</div>
-
-<div id="modal-overlay">
-  <div id="modal">
-    <h3 id="modal-title">Distance</h3>
-    <label id="modal-label">Enter real-world distance in feet:</label>
-    <input type="number" step="0.1" id="modal-input" />
-    <div class="modal-buttons">
-      <button id="modal-cancel">Cancel</button>
-      <button id="modal-confirm">OK</button>
-    </div>
-  </div>
-</div>
-
-<div id="modal-overlay-add-node">
-  <div id="modal-add-node">
-    <h3>Add Node</h3>
-    <label>ID</label>
-    <input type="text" id="add-node-id" placeholder="e.g. NPB_5_102" />
-    <label>Name</label>
-    <input type="text" id="add-node-name" placeholder="e.g. Room 102" />
-    <label>Type</label>
-    <select id="add-node-type">
-      <option value="room">Room</option>
-      <option value="waypoint">Waypoint</option>
-      <option value="elevator">Elevator</option>
-      <option value="staircase">Staircase</option>
-      <option value="spine">Spine</option>
-    </select>
-    <label>Building</label>
-    <input type="text" id="add-node-building" readonly />
-    <label>Floor</label>
-    <input type="text" id="add-node-floor" readonly />
-    <div class="modal-buttons">
-      <button id="add-node-cancel">Cancel</button>
-      <button id="add-node-confirm">Add</button>
-    </div>
-  </div>
-</div>
-
-<script>
-/* ── state ─────────────────────────────────────────────── */
-let nodes = [];
-let floorsData = {};
-let img = null;
-
-let zoom = 1;
-let panX = 0, panY = 0;
-let isPanning = false;
-let panStart = { x: 0, y: 0, px: 0, py: 0 };
-
-let selectedNodeId = null;
-let mode = 'place'; // place | set_origin | cal_node | cal_dist_start | cal_dist_end
-let calNodeId = null;
-let calPointA = null;
-let calPointB = null;
-
-/* ── DOM refs ──────────────────────────────────────────── */
-const viewport = document.getElementById('viewport');
-const canvas = document.getElementById('main-canvas');
-const ctx = canvas.getContext('2d');
-const statusBar = document.getElementById('status-bar');
-const nodeListEl = document.getElementById('node-list');
-const nodeCountEl = document.getElementById('node-count');
-const btnSaveNodes = document.getElementById('btn-save-nodes');
-const btnSaveFloors = document.getElementById('btn-save-floors');
-const filterBuilding = document.getElementById('filter-building');
-const filterFloor = document.getElementById('filter-floor');
-const originXInput = document.getElementById('origin-x');
-const originYInput = document.getElementById('origin-y');
-const pxPerFootInput = document.getElementById('px-per-foot');
-const btnSetOrigin = document.getElementById('btn-set-origin');
-const btnCalNode = document.getElementById('btn-cal-node');
-const btnCalDist = document.getElementById('btn-cal-dist');
-const btnResetCal = document.getElementById('btn-reset-cal');
-const btnLoad = document.getElementById('btn-load');
-
-const modalOverlay = document.getElementById('modal-overlay');
-const modalTitle = document.getElementById('modal-title');
-const modalLabel = document.getElementById('modal-label');
-const modalInput = document.getElementById('modal-input');
-const btnModalCancel = document.getElementById('modal-cancel');
-const btnModalConfirm = document.getElementById('modal-confirm');
-
-/* ── helpers ───────────────────────────────────────────── */
-function setStatus(msg) { statusBar.textContent = msg; }
-
-function getBuilding() { return (filterBuilding.value.trim() || 'NPB').toUpperCase(); }
-function getFloor() { return filterFloor.value.trim() || '5'; }
-
-function currentFloorMeta() {
-  const b = getBuilding();
-  const f = getFloor();
-  if (!floorsData[b]) floorsData[b] = {};
-  if (!floorsData[b][f]) floorsData[b][f] = { width_feet: 300, height_feet: 60, image: null, px_per_foot: null, origin_px: null };
-  return floorsData[b][f];
-}
-
-function currentNodes() {
-  const b = getBuilding().toLowerCase();
-  const f = parseInt(getFloor());
-  return nodes.filter(n => (n.building||'').toLowerCase() === b && n.floor === f);
-}
-
-function isPlaced(node) {
-  return node.coords !== null && Array.isArray(node.coords) && node.coords[0] !== null && node.coords[1] !== null;
-}
-
-function getCalib() {
-  const meta = currentFloorMeta();
-  return {
-    origin: meta.origin_px,
-    scale: meta.px_per_foot,
-    hasOrigin: meta.origin_px && Array.isArray(meta.origin_px) && meta.origin_px.length === 2,
-    hasScale: typeof meta.px_per_foot === 'number' && meta.px_per_foot > 0,
-  };
-}
-
-function updateCalibInputs() {
-  const meta = currentFloorMeta();
-  originXInput.value = (meta.origin_px && meta.origin_px[0] != null) ? meta.origin_px[0] : '';
-  originYInput.value = (meta.origin_px && meta.origin_px[1] != null) ? meta.origin_px[1] : '';
-  pxPerFootInput.value = (meta.px_per_foot != null) ? meta.px_per_foot : '';
-}
-
-/* ── file I/O ──────────────────────────────────────────── */
-function readJSON(file, cb) {
-  const r = new FileReader();
-  r.onload = ev => { try { cb(JSON.parse(ev.target.result)); } catch(e) { alert('Failed to parse ' + file.name); } };
-  r.readAsText(file);
-}
-
-async function writeJSON(filename, data) {
-  const json = JSON.stringify(data, null, 2);
-  if (window.showSaveFilePicker) {
-    try {
-      const handle = await window.showSaveFilePicker({ suggestedName: filename, types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }] });
-      const w = await handle.createWritable();
-      await w.write(json);
-      await w.close();
-      setStatus(`Saved ${handle.name}`);
-    } catch(err) { if (err.name !== 'AbortError') setStatus('Save failed: ' + err.message); }
-  } else {
-    const blob = new Blob([json], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = filename; a.click();
-    setStatus(`${filename} downloaded.`);
-  }
-}
-
-document.getElementById('data-dir').addEventListener('change', e => {
-  const files = Array.from(e.target.files);
-  const floorsFile = files.find(f => f.name === 'floors.json');
-  const nodesFile  = files.find(f => f.name === 'nodes.json');
-  if (!floorsFile) { setStatus('No floors.json found in selected folder.'); return; }
-  if (!nodesFile)  { setStatus('No nodes.json found in selected folder.'); return; }
-
-  let pending = 2;
-  function onBoth() {
-    if (--pending > 0) return;
-    btnSaveNodes.disabled = false;
-    btnSaveFloors.disabled = false;
-    updateCalibInputs();
-    renderList();
-    redraw();
-    setStatus(`Loaded ${nodes.length} nodes.`);
-  }
-  readJSON(floorsFile, d => { floorsData = d; onBoth(); });
-  readJSON(nodesFile,  d => { nodes = d;      onBoth(); });
-});
-
-document.getElementById('img-input').addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (!file) return;
-  img = new Image();
-  img.onload = () => {
-    const meta = currentFloorMeta();
-    meta.image = file.name;
-    // Center image in viewport
-    const rect = viewport.getBoundingClientRect();
-    panX = (rect.width - img.naturalWidth) / 2;
-    panY = (rect.height - img.naturalHeight) / 2;
-    zoom = 1;
-    redraw();
-    setStatus(`Image loaded: ${img.naturalWidth}x${img.naturalHeight}`);
-  };
-  img.src = URL.createObjectURL(file);
-});
-
-btnSaveNodes.addEventListener('click', () => writeJSON('nodes.json', nodes));
-btnSaveFloors.addEventListener('click', () => writeJSON('floors.json', floorsData));
-
-/* ── coordinate math ─────────────────────────────────────── */
-function screenToImage(sx, sy) {
-  return {
-    x: (sx - panX) / zoom,
-    y: (sy - panY) / zoom,
-  };
-}
-
-function imageToScreen(ix, iy) {
-  return {
-    x: ix * zoom + panX,
-    y: iy * zoom + panY,
-  };
-}
-
-function snapToQuarter(value) {
-  return Math.round(value * 4) / 4;
-}
-
-function imageToFeet(ix, iy) {
-  const cal = getCalib();
-  if (!cal.hasOrigin || !cal.hasScale) return null;
-  const fx = (ix - cal.origin[0]) / cal.scale;
-  const fy = -(iy - cal.origin[1]) / cal.scale;
-  return [
-    parseFloat(snapToQuarter(fx).toFixed(2)),
-    parseFloat(snapToQuarter(fy).toFixed(2)),
-  ];
-}
-
-function feetToImage(fx, fy) {
-  const cal = getCalib();
-  if (!cal.hasOrigin || !cal.hasScale) return null;
-  return [
-    cal.origin[0] + fx * cal.scale,
-    cal.origin[1] - fy * cal.scale,
-  ];
-}
-
-/* ── viewport sizing ───────────────────────────────────── */
-function resize() {
-  const rect = viewport.getBoundingClientRect();
-  canvas.width = rect.width * window.devicePixelRatio;
-  canvas.height = rect.height * window.devicePixelRatio;
-  canvas.style.width = rect.width + 'px';
-  canvas.style.height = rect.height + 'px';
-  ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
-  redraw();
-}
-window.addEventListener('resize', resize);
-
-/* ── pan / zoom ────────────────────────────────────────── */
-viewport.addEventListener('wheel', e => {
-  e.preventDefault();
-  const { x: sx, y: sy } = getLocalPos(e);
-  const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-  const newZoom = Math.max(0.1, Math.min(20, zoom * factor));
-  const ratio = newZoom / zoom;
-  panX = sx - (sx - panX) * ratio;
-  panY = sy - (sy - panY) * ratio;
-  zoom = newZoom;
-  redraw();
-}, { passive: false });
-
-function getLocalPos(e) {
-  const rect = viewport.getBoundingClientRect();
-  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-}
-
-viewport.addEventListener('mousedown', e => {
-  if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
-    e.preventDefault();
-    isPanning = true;
-    panStart = { x: e.clientX, y: e.clientY, px: panX, py: panY };
-    viewport.style.cursor = 'grabbing';
-  }
-});
-
-window.addEventListener('mouseup', () => {
-  if (isPanning) { isPanning = false; viewport.style.cursor = 'crosshair'; }
-});
-
-window.addEventListener('mousemove', e => {
-  if (isPanning) {
-    panX = panStart.px + (e.clientX - panStart.x);
-    panY = panStart.py + (e.clientY - panStart.y);
-    redraw();
-  }
-});
-
-/* ── calibration modes ─────────────────────────────────── */
-function setMode(newMode) {
-  mode = newMode;
-  [btnSetOrigin, btnCalNode, btnCalDist].forEach(b => b.classList.remove('active'));
-  if (mode === 'set_origin') btnSetOrigin.classList.add('active');
-  if (mode === 'cal_node') btnCalNode.classList.add('active');
-  if (mode.startsWith('cal_dist')) btnCalDist.classList.add('active');
-
-  if (mode === 'cal_node') {
-    // populate a prompt with known nodes for this floor
-    const known = currentNodes().filter(n => isPlaced(n));
-    if (!known.length) { alert('No known nodes for this floor.'); setMode('place'); return; }
-    const opts = known.map(n => `${n.id} (${n.coords[0]}, ${n.coords[1]})`).join('\n');
-    const id = prompt(`Select a known node by full ID:\n${opts}`);
-    if (!id || !known.find(n => n.id === id)) { setMode('place'); return; }
-    calNodeId = id;
-    setStatus(`Click the location of ${calNodeId} on the image.`);
-  }
-  if (mode === 'cal_dist_start') {
-    calPointA = null; calPointB = null;
-    setStatus('Click start point of known distance on image.');
-  }
-}
-
-btnSetOrigin.addEventListener('click', () => setMode('set_origin'));
-btnCalNode.addEventListener('click', () => {
-  if (!getCalib().hasOrigin) { alert('Set origin first.'); return; }
-  setMode('cal_node');
-});
-btnCalDist.addEventListener('click', () => {
-  setMode('cal_dist_start');
-});
-btnResetCal.addEventListener('click', () => {
-  const meta = currentFloorMeta();
-  meta.origin_px = null; meta.px_per_foot = null;
-  updateCalibInputs(); redraw(); setStatus('Calibration reset.');
-});
-
-/* ── click handling ────────────────────────────────────── */
-viewport.addEventListener('click', e => {
-  if (e.button !== 0) return;
-  if (isPanning) return;
-  if (!img) { setStatus('Load an image first.'); return; }
-  const { x: sx, y: sy } = getLocalPos(e);
-  const { x: ix, y: iy } = screenToImage(sx, sy);
-  const meta = currentFloorMeta();
-
-  if (mode === 'set_origin') {
-    meta.origin_px = [Math.round(ix * 10) / 10, Math.round(iy * 10) / 10];
-    updateCalibInputs();
-    setStatus(`Origin set to [${meta.origin_px[0]}, ${meta.origin_px[1]}] px`);
-    setMode('place');
-    redraw(); return;
-  }
-
-  if (mode === 'cal_node') {
-    const node = nodes.find(n => n.id === calNodeId);
-    if (!node) { setMode('place'); return; }
-    const ox = meta.origin_px[0], oy = meta.origin_px[1];
-    const dx = ix - ox, dy = iy - oy;
-    const fx = node.coords[0], fy = node.coords[1];
-    const feetDist = Math.sqrt(fx*fx + fy*fy);
-    const pixDist = Math.sqrt(dx*dx + dy*dy);
-    if (feetDist < 0.1 || pixDist < 1) { alert('Node is too close to origin or click is too close to origin.'); return; }
-    meta.px_per_foot = parseFloat((pixDist / feetDist).toFixed(4));
-    updateCalibInputs();
-    setStatus(`Scale set to ${meta.px_per_foot} px/ft from ${calNodeId}`);
-    setMode('place');
-    redraw(); return;
-  }
-
-  if (mode === 'cal_dist_start') {
-    calPointA = { x: ix, y: iy };
-    setMode('cal_dist_end');
-    setStatus('Click end point of known distance.'); return;
-  }
-
-  if (mode === 'cal_dist_end') {
-    calPointB = { x: ix, y: iy };
-    const dx = calPointB.x - calPointA.x;
-    const dy = calPointB.y - calPointA.y;
-    const pixDist = Math.sqrt(dx*dx + dy*dy);
-    if (pixDist < 1) { setStatus('Distance too short.'); setMode('cal_dist_start'); return; }
-    showModalDistance(pixDist); return;
-  }
-
-  // Normal placement
-  const cal = getCalib();
-  if (!cal.hasOrigin) { setStatus('Set origin before placing nodes.'); return; }
-  if (!cal.hasScale) { setStatus('Calibrate scale before placing nodes.'); return; }
-  if (selectedNodeId === null) { setStatus('Select a node from the sidebar first.'); return; }
-  const coords = imageToFeet(ix, iy);
-  const node = nodes.find(n => n.id === selectedNodeId);
-  if (!node) return;
-  node.coords = coords;
-  setStatus(`Placed "${node.name || node.id}" at [${coords[0]}, ${coords[1]}] ft`);
-  renderList();
-  redraw();
-});
-
-/* ── modal for distance calibration ────────────────────── */
-function showModalDistance(pixDist) {
-  modalTitle.textContent = 'Calibrate with Distance';
-  modalLabel.textContent = `Pixel distance: ${pixDist.toFixed(1)} px. Enter real-world distance in feet:`;
-  modalInput.value = '';
-  modalOverlay.style.display = 'flex';
-  modalInput.focus();
-
-  function confirm() {
-    const ft = parseFloat(modalInput.value);
-    if (!ft || ft <= 0) { alert('Enter a positive distance.'); return; }
-    const meta = currentFloorMeta();
-    meta.px_per_foot = parseFloat((pixDist / ft).toFixed(4));
-    updateCalibInputs();
-    setStatus(`Scale set to ${meta.px_per_foot} px/ft`);
-    cleanup(); setMode('place'); redraw();
-  }
-  function cancel() { cleanup(); setMode('place'); }
-  function cleanup() {
-    modalOverlay.style.display = 'none';
-    btnModalConfirm.removeEventListener('click', confirm);
-    btnModalCancel.removeEventListener('click', cancel);
-  }
-  btnModalConfirm.addEventListener('click', confirm);
-  btnModalCancel.addEventListener('click', cancel);
-}
-
-/* ── manual calibration edits ──────────────────────────── */
-function applyManualCalib() {
-  const meta = currentFloorMeta();
-  const ox = parseFloat(originXInput.value);
-  const oy = parseFloat(originYInput.value);
-  const sc = parseFloat(pxPerFootInput.value);
-  if (!isNaN(ox) && !isNaN(oy)) meta.origin_px = [ox, oy];
-  if (!isNaN(sc) && sc > 0) meta.px_per_foot = sc;
-  redraw();
-}
-[originXInput, originYInput, pxPerFootInput].forEach(el =>
-  el.addEventListener('change', applyManualCalib)
-);
-
-/* ── add spine ─────────────────────────────────────────── */
-const btnAddSpine = document.getElementById('btn-add-spine');
-btnAddSpine.addEventListener('click', () => {
-  if (!nodes.length) { alert('Load nodes.json first.'); return; }
-  const building = getBuilding();
-  const floor = parseInt(getFloor());
-  const regex = new RegExp(`^${building}_${floor}_spine_(\\d+)$`, 'i');
-  let max = 0;
-  nodes.forEach(n => {
-    const m = n.id.match(regex);
-    if (m) max = Math.max(max, parseInt(m[1]));
-  });
-  const next = max + 1;
-  const id = `${building}_${floor}_spine_${next}`;
-  nodes.push({ id, name: `spine ${next}`, type: 'spine', building, coords: [null, null], floor });
-  selectedNodeId = id;
-  renderList();
-  redraw();
-  setStatus(`Added ${id}`);
-});
-
-/* ── add node modal ─────────────────────────────────────── */
-const btnAddNode = document.getElementById('btn-add-node');
-const modalOverlayAddNode = document.getElementById('modal-overlay-add-node');
-const addNodeId = document.getElementById('add-node-id');
-const addNodeName = document.getElementById('add-node-name');
-const addNodeType = document.getElementById('add-node-type');
-const addNodeBuilding = document.getElementById('add-node-building');
-const addNodeFloor = document.getElementById('add-node-floor');
-const btnAddNodeCancel = document.getElementById('add-node-cancel');
-const btnAddNodeConfirm = document.getElementById('add-node-confirm');
-
-btnAddNode.addEventListener('click', () => {
-  if (!nodes.length) { alert('Load nodes.json first.'); return; }
-  addNodeBuilding.value = getBuilding();
-  addNodeFloor.value = getFloor();
-  addNodeId.value = '';
-  addNodeName.value = '';
-  addNodeType.value = 'room';
-  modalOverlayAddNode.style.display = 'flex';
-  addNodeId.focus();
-});
-
-btnAddNodeCancel.addEventListener('click', () => { modalOverlayAddNode.style.display = 'none'; });
-
-btnAddNodeConfirm.addEventListener('click', () => {
-  const id = addNodeId.value.trim();
-  const name = addNodeName.value.trim();
-  const type = addNodeType.value;
-  const building = getBuilding();
-  const floor = parseInt(getFloor());
-  if (!id) { alert('ID is required.'); return; }
-  if (!name) { alert('Name is required.'); return; }
-  if (nodes.find(n => n.id === id)) { alert('ID must be unique.'); return; }
-  nodes.push({ id, name, type, building, coords: [null, null], floor });
-  selectedNodeId = id;
-  modalOverlayAddNode.style.display = 'none';
-  renderList();
-  redraw();
-  setStatus(`Added ${id}`);
-});
-
-/* ── node list ─────────────────────────────────────────── */
-function renderList() {
-  nodeListEl.innerHTML = '';
-  const list = currentNodes();
-  list.forEach(node => {
-    const div = document.createElement('div');
-    div.className = 'node-item' +
-      (node.id === selectedNodeId ? ' selected' : '') +
-      (isPlaced(node) ? ' placed' : '');
-    div.innerHTML = `
-      <span class="node-label" title="${node.id}">${node.name || node.id}</span>
-      <span class="node-coords">${isPlaced(node) ? `[${node.coords[0]}, ${node.coords[1]}] ft` : 'unset'}</span>
-    `;
-    div.addEventListener('click', () => {
-      if (selectedNodeId === node.id) {
-        selectedNodeId = null;
-      } else {
-        selectedNodeId = node.id;
-        if (isPlaced(node)) centerOnNode(node);
+  <head>
+    <meta charset="UTF-8" />
+    <title>Coordinate Picker — Campus Navigator</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
       }
-      renderList();
-      redraw();
-    });
-    nodeListEl.appendChild(div);
-  });
-  nodeCountEl.textContent = `(${list.length})`;
-}
+      body {
+        font-family: sans-serif;
+        background: #1a1a2e;
+        color: #eee;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+      }
 
-function centerOnNode(node) {
-  const pos = feetToImage(node.coords[0], node.coords[1]);
-  if (!pos) return;
-  const rect = viewport.getBoundingClientRect();
-  panX = rect.width / 2 - pos[0] * zoom;
-  panY = rect.height / 2 - pos[1] * zoom;
-}
+      #toolbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 14px;
+        background: #16213e;
+        border-bottom: 1px solid #0f3460;
+        flex-shrink: 0;
+        flex-wrap: wrap;
+      }
+      #toolbar h1 {
+        font-size: 1rem;
+        color: #e94560;
+        margin-right: 8px;
+      }
+      #toolbar label {
+        font-size: 0.8rem;
+        color: #aaa;
+        white-space: nowrap;
+      }
+      #toolbar input[type="file"] {
+        font-size: 0.75rem;
+      }
+      #toolbar input[type="text"],
+      #toolbar input[type="number"] {
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid #0f3460;
+        background: #0f3460;
+        color: #eee;
+        font-size: 0.8rem;
+        width: 70px;
+      }
+      button {
+        padding: 5px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.82rem;
+        background: #0f3460;
+        color: #eee;
+        white-space: nowrap;
+      }
+      button.active {
+        outline: 2px solid #e94560;
+      }
+      #btn-save-nodes,
+      #btn-save-floors {
+        background: #e94560;
+        color: #fff;
+      }
+      #btn-save-nodes:disabled,
+      #btn-save-floors:disabled {
+        background: #555;
+        cursor: default;
+      }
 
-btnLoad.addEventListener('click', () => {
-  updateCalibInputs();
-  renderList();
-  redraw();
-  setStatus(`Loaded floor ${getBuilding()} ${getFloor()}`);
-});
-filterBuilding.addEventListener('keydown', e => { if (e.key === 'Enter') btnLoad.click(); });
-filterFloor.addEventListener('keydown', e => { if (e.key === 'Enter') btnLoad.click(); });
+      #calibration-panel {
+        background: #0f2240;
+        border-top: 1px solid #0f3460;
+        padding: 6px 14px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+      }
+      #calibration-panel h2 {
+        font-size: 0.85rem;
+        color: #e94560;
+        margin-right: 4px;
+      }
+      #calibration-panel label {
+        font-size: 0.78rem;
+        color: #aaa;
+      }
+      #calibration-panel input[type="number"] {
+        width: 75px;
+        padding: 3px 6px;
+        border-radius: 4px;
+        border: 1px solid #0f3460;
+        background: #0f3460;
+        color: #eee;
+        font-size: 0.78rem;
+      }
 
-/* ── drawing ───────────────────────────────────────────── */
-function redraw() {
-  const rect = viewport.getBoundingClientRect();
-  const W = rect.width, H = rect.height;
-  ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(0, 0, W, H);
+      #main {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+      }
 
-  if (!img) {
-    ctx.fillStyle = '#888';
-    ctx.textAlign = 'center';
-    ctx.font = '14px sans-serif';
-    ctx.fillText('Load an image to begin.', W/2, H/2);
-    return;
-  }
+      #viewport {
+        position: relative;
+        flex: 1;
+        overflow: hidden;
+        background: #fff;
+        cursor: crosshair;
+        touch-action: none;
+      }
+      canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
 
-  // Draw image
-  const ix = imageToScreen(0, 0).x;
-  const iy = imageToScreen(0, 0).y;
-  const iw = img.naturalWidth * zoom;
-  const ih = img.naturalHeight * zoom;
-  ctx.drawImage(img, ix, iy, iw, ih);
+      #sidebar {
+        width: 300px;
+        flex-shrink: 0;
+        background: #16213e;
+        border-left: 1px solid #0f3460;
+        overflow-y: auto;
+        padding: 10px;
+      }
+      #sidebar h2 {
+        font-size: 0.9rem;
+        color: #e94560;
+        margin-bottom: 8px;
+      }
 
-  // If not fully calibrated, draw a light grid over the image
-  const cal = getCalib();
-  ctx.lineWidth = 1;
-  if (!cal.hasOrigin || !cal.hasScale) {
-    ctx.strokeStyle = 'rgba(0,0,0,0.06)';
-    for (let gx = 0; gx < img.naturalWidth; gx += 100) {
-      const s = imageToScreen(gx, 0);
-      ctx.beginPath(); ctx.moveTo(s.x, 0); ctx.lineTo(s.x, H); ctx.stroke();
-    }
-    for (let gy = 0; gy < img.naturalHeight; gy += 100) {
-      const s = imageToScreen(0, gy);
-      ctx.beginPath(); ctx.moveTo(0, s.y); ctx.lineTo(W, s.y); ctx.stroke();
-    }
-  }
+      select {
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid #0f3460;
+        background: #0f3460;
+        color: #eee;
+        font-size: 0.8rem;
+      }
 
-  // Origin marker
-  if (cal.hasOrigin) {
-    const o = imageToScreen(cal.origin[0], cal.origin[1]);
-    ctx.strokeStyle = '#e94560'; ctx.lineWidth = 2; ctx.setLineDash([4,4]);
-    ctx.beginPath(); ctx.moveTo(o.x - 14, o.y); ctx.lineTo(o.x + 14, o.y); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(o.x, o.y - 14); ctx.lineTo(o.x, o.y + 14); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle = '#e94560'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('Origin (0,0)', o.x, o.y - 18);
-  }
+      .node-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 5px 6px;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        background: #0f3460;
+        font-size: 0.8rem;
+        cursor: pointer;
+      }
+      .node-item:hover {
+        background: #1a4a80;
+      }
+      .node-item.selected {
+        background: #e94560;
+      }
+      .node-item.placed .node-coords {
+        color: #4caf50;
+      }
+      .node-item .node-label {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .node-item .node-coords {
+        font-size: 0.7rem;
+        color: #888;
+        margin-left: 6px;
+        white-space: nowrap;
+      }
 
-  // Calibration distance line
-  if (mode === 'cal_dist_end' && calPointA) {
-    const a = imageToScreen(calPointA.x, calPointA.y);
-    ctx.strokeStyle = '#ffeb3b'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(a.x, a.y, 4, 0, Math.PI*2); ctx.fillStyle = '#ffeb3b'; ctx.fill();
-    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x, a.y); ctx.stroke(); // placeholder, will extend on move? No, only redraw on click, but we don't have mouse pos here. We can live with just start dot until second click.
-  }
+      #status-bar {
+        background: #16213e;
+        border-top: 1px solid #0f3460;
+        padding: 6px 14px;
+        font-size: 0.8rem;
+        color: #aaa;
+        flex-shrink: 0;
+      }
 
-  // Nodes
-  const list = currentNodes();
-  list.forEach(node => {
-    if (!isPlaced(node)) return;
-    const pos = feetToImage(node.coords[0], node.coords[1]);
-    if (!pos) return;
-    const s = imageToScreen(pos[0], pos[1]);
-    const isSel = node.id === selectedNodeId;
+      #modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+      }
+      #modal {
+        background: #16213e;
+        border: 1px solid #0f3460;
+        border-radius: 6px;
+        padding: 16px;
+        width: 320px;
+        max-width: 90vw;
+      }
+      #modal h3 {
+        font-size: 0.9rem;
+        color: #e94560;
+        margin-bottom: 10px;
+      }
+      #modal label {
+        font-size: 0.8rem;
+        color: #aaa;
+      }
+      #modal input {
+        width: 100%;
+        padding: 6px;
+        margin: 6px 0 12px 0;
+        border-radius: 4px;
+        border: 1px solid #0f3460;
+        background: #0f3460;
+        color: #eee;
+      }
+      #modal .modal-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
 
-    ctx.beginPath();
-    ctx.arc(s.x, s.y, isSel ? 10 : 7, 0, Math.PI*2);
-    ctx.fillStyle = isSel ? '#e94560' : '#4caf50';
-    ctx.fill();
-    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
+      #modal-overlay-add-node {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+      }
+      #modal-add-node {
+        background: #16213e;
+        border: 1px solid #0f3460;
+        border-radius: 6px;
+        padding: 16px;
+        width: 320px;
+        max-width: 90vw;
+      }
+      #modal-add-node h3 {
+        font-size: 0.9rem;
+        color: #e94560;
+        margin-bottom: 10px;
+      }
+      #modal-add-node label {
+        font-size: 0.8rem;
+        color: #aaa;
+        display: block;
+        margin-top: 6px;
+      }
+      #modal-add-node input,
+      #modal-add-node select {
+        width: 100%;
+        padding: 6px;
+        margin: 4px 0 8px 0;
+        border-radius: 4px;
+        border: 1px solid #0f3460;
+        background: #0f3460;
+        color: #eee;
+      }
+      #modal-add-node .modal-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="toolbar">
+      <h1>Coord Picker</h1>
+      <label
+        >Data folder: <input type="file" id="data-dir" webkitdirectory
+      /></label>
+      <label
+        >Image: <input type="file" id="img-input" accept="image/*"
+      /></label>
+      <label
+        >Building:
+        <input type="text" id="filter-building" placeholder="NPB" value="NPB"
+      /></label>
+      <label
+        >Floor:
+        <input type="number" id="filter-floor" placeholder="5" value="5"
+      /></label>
+      <button id="btn-load">Load</button>
+      <button id="btn-save-nodes" disabled>Save nodes.json</button>
+      <button id="btn-save-floors" disabled>Save floors.json</button>
+      <button id="btn-add-spine">+ Add Spine</button>
+      <button id="btn-add-node">+ Add Node</button>
+    </div>
 
-    const label = node.name || node.id;
-    ctx.font = `${isSel ? 'bold ' : ''}12px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 3;
-    ctx.strokeText(label, s.x, s.y - 14);
-    ctx.fillStyle = '#222'; ctx.fillText(label, s.x, s.y - 14);
-  });
+    <div id="calibration-panel">
+      <h2>Calibration</h2>
+      <label>Origin X: <input type="number" step="0.5" id="origin-x" /></label>
+      <label>Origin Y: <input type="number" step="0.5" id="origin-y" /></label>
+      <label>px/ft: <input type="number" step="0.01" id="px-per-foot" /></label>
+      <button id="btn-set-origin">Set Origin</button>
+      <button id="btn-cal-node">Calibrate from Node</button>
+      <button id="btn-cal-dist">Calibrate with Distance</button>
+      <button id="btn-reset-cal">Reset Calibration</button>
+    </div>
 
-  // Crosshair when in calibration modes
-  if (['set_origin','cal_node','cal_dist_start','cal_dist_end'].includes(mode)) {
-    // We don't have live mouse pos here; skip for simplicity
-  }
-}
+    <div id="main">
+      <div id="viewport">
+        <canvas id="main-canvas"></canvas>
+      </div>
 
-/* ── keyboard shortcuts ──────────────────────────────── */
-window.addEventListener('keydown', e => {
-  // Ctrl+I / Cmd+I: add spine
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') {
-    e.preventDefault();
-    if (!nodes.length) { setStatus('Load nodes.json first.'); return; }
-    const building = getBuilding();
-    const floor = parseInt(getFloor());
-    const regex = new RegExp(`^${building}_${floor}_spine_(\\d+)$`, 'i');
-    let max = 0;
-    nodes.forEach(n => {
-      const m = n.id.match(regex);
-      if (m) max = Math.max(max, parseInt(m[1]));
-    });
-    const next = max + 1;
-    const id = `${building}_${floor}_spine_${next}`;
-    nodes.push({ id, name: `spine ${next}`, type: 'spine', building, coords: [null, null], floor });
-    selectedNodeId = id;
-    renderList();
-    redraw();
-    setStatus(`Added ${id}`);
-  }
-});
+      <div id="sidebar">
+        <h2>Nodes <span id="node-count"></span></h2>
+        <div id="node-list"></div>
+      </div>
+    </div>
 
-/* ── init ──────────────────────────────────────────────── */
-resize();
-setMode('place');
-</script>
-</body>
+    <div id="status-bar">Select the data/ folder to begin.</div>
+
+    <div id="modal-overlay">
+      <div id="modal">
+        <h3 id="modal-title">Distance</h3>
+        <label id="modal-label">Enter real-world distance in feet:</label>
+        <input type="number" step="0.1" id="modal-input" />
+        <div class="modal-buttons">
+          <button id="modal-cancel">Cancel</button>
+          <button id="modal-confirm">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="modal-overlay-add-node">
+      <div id="modal-add-node">
+        <h3>Add Node</h3>
+        <label>ID</label>
+        <input type="text" id="add-node-id" placeholder="e.g. NPB_5_102" />
+        <label>Name</label>
+        <input type="text" id="add-node-name" placeholder="e.g. Room 102" />
+        <label>Type</label>
+        <select id="add-node-type">
+          <option value="room">Room</option>
+          <option value="waypoint">Waypoint</option>
+          <option value="elevator">Elevator</option>
+          <option value="staircase">Staircase</option>
+          <option value="spine">Spine</option>
+        </select>
+        <label>Building</label>
+        <input type="text" id="add-node-building" readonly />
+        <label>Floor</label>
+        <input type="text" id="add-node-floor" readonly />
+        <div class="modal-buttons">
+          <button id="add-node-cancel">Cancel</button>
+          <button id="add-node-confirm">Add</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      /* ── state ─────────────────────────────────────────────── */
+      let nodes = [];
+      let floorsData = {};
+      let img = null;
+
+      let zoom = 1;
+      let panX = 0,
+        panY = 0;
+      let isPanning = false;
+      let panStart = { x: 0, y: 0, px: 0, py: 0 };
+
+      let selectedNodeId = null;
+      let mode = "place"; // place | set_origin | cal_node | cal_dist_start | cal_dist_end
+      let calNodeId = null;
+      let calPointA = null;
+      let calPointB = null;
+
+      /* ── DOM refs ──────────────────────────────────────────── */
+      const viewport = document.getElementById("viewport");
+      const canvas = document.getElementById("main-canvas");
+      const ctx = canvas.getContext("2d");
+      const statusBar = document.getElementById("status-bar");
+      const nodeListEl = document.getElementById("node-list");
+      const nodeCountEl = document.getElementById("node-count");
+      const btnSaveNodes = document.getElementById("btn-save-nodes");
+      const btnSaveFloors = document.getElementById("btn-save-floors");
+      const filterBuilding = document.getElementById("filter-building");
+      const filterFloor = document.getElementById("filter-floor");
+      const originXInput = document.getElementById("origin-x");
+      const originYInput = document.getElementById("origin-y");
+      const pxPerFootInput = document.getElementById("px-per-foot");
+      const btnSetOrigin = document.getElementById("btn-set-origin");
+      const btnCalNode = document.getElementById("btn-cal-node");
+      const btnCalDist = document.getElementById("btn-cal-dist");
+      const btnResetCal = document.getElementById("btn-reset-cal");
+      const btnLoad = document.getElementById("btn-load");
+
+      const modalOverlay = document.getElementById("modal-overlay");
+      const modalTitle = document.getElementById("modal-title");
+      const modalLabel = document.getElementById("modal-label");
+      const modalInput = document.getElementById("modal-input");
+      const btnModalCancel = document.getElementById("modal-cancel");
+      const btnModalConfirm = document.getElementById("modal-confirm");
+
+      /* ── helpers ───────────────────────────────────────────── */
+      function setStatus(msg) {
+        statusBar.textContent = msg;
+      }
+
+      function getBuilding() {
+        return (filterBuilding.value.trim() || "NPB").toUpperCase();
+      }
+      function getFloor() {
+        return filterFloor.value.trim() || "5";
+      }
+
+      function currentFloorMeta() {
+        const b = getBuilding();
+        const f = getFloor();
+        if (!floorsData[b]) floorsData[b] = {};
+        if (!floorsData[b][f])
+          floorsData[b][f] = {
+            width_feet: 300,
+            height_feet: 60,
+            image: null,
+            px_per_foot: null,
+            origin_px: null,
+          };
+        return floorsData[b][f];
+      }
+
+      function currentNodes() {
+        const b = getBuilding().toLowerCase();
+        const f = parseInt(getFloor());
+        return nodes.filter(
+          (n) => (n.building || "").toLowerCase() === b && n.floor === f,
+        );
+      }
+
+      function isPlaced(node) {
+        return (
+          node.coords !== null &&
+          Array.isArray(node.coords) &&
+          node.coords[0] !== null &&
+          node.coords[1] !== null
+        );
+      }
+
+      function getCalib() {
+        const meta = currentFloorMeta();
+        return {
+          origin: meta.origin_px,
+          scale: meta.px_per_foot,
+          hasOrigin:
+            meta.origin_px &&
+            Array.isArray(meta.origin_px) &&
+            meta.origin_px.length === 2,
+          hasScale:
+            typeof meta.px_per_foot === "number" && meta.px_per_foot > 0,
+        };
+      }
+
+      function updateCalibInputs() {
+        const meta = currentFloorMeta();
+        originXInput.value =
+          meta.origin_px && meta.origin_px[0] != null ? meta.origin_px[0] : "";
+        originYInput.value =
+          meta.origin_px && meta.origin_px[1] != null ? meta.origin_px[1] : "";
+        pxPerFootInput.value = meta.px_per_foot != null ? meta.px_per_foot : "";
+      }
+
+      /* ── file I/O ──────────────────────────────────────────── */
+      function readJSON(file, cb) {
+        const r = new FileReader();
+        r.onload = (ev) => {
+          try {
+            cb(JSON.parse(ev.target.result));
+          } catch (e) {
+            alert("Failed to parse " + file.name);
+          }
+        };
+        r.readAsText(file);
+      }
+
+      async function writeJSON(filename, data) {
+        const json = JSON.stringify(data, null, 2);
+        if (window.showSaveFilePicker) {
+          try {
+            const handle = await window.showSaveFilePicker({
+              suggestedName: filename,
+              types: [
+                {
+                  description: "JSON",
+                  accept: { "application/json": [".json"] },
+                },
+              ],
+            });
+            const w = await handle.createWritable();
+            await w.write(json);
+            await w.close();
+            setStatus(`Saved ${handle.name}`);
+          } catch (err) {
+            if (err.name !== "AbortError")
+              setStatus("Save failed: " + err.message);
+          }
+        } else {
+          const blob = new Blob([json], { type: "application/json" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = filename;
+          a.click();
+          setStatus(`${filename} downloaded.`);
+        }
+      }
+
+      document.getElementById("data-dir").addEventListener("change", (e) => {
+        const files = Array.from(e.target.files);
+        const floorsFile = files.find((f) => f.name === "floors.json");
+        const nodesFile = files.find((f) => f.name === "nodes.json");
+        if (!floorsFile) {
+          setStatus("No floors.json found in selected folder.");
+          return;
+        }
+        if (!nodesFile) {
+          setStatus("No nodes.json found in selected folder.");
+          return;
+        }
+
+        let pending = 2;
+        function onBoth() {
+          if (--pending > 0) return;
+          btnSaveNodes.disabled = false;
+          btnSaveFloors.disabled = false;
+          updateCalibInputs();
+          renderList();
+          redraw();
+          setStatus(`Loaded ${nodes.length} nodes.`);
+        }
+        readJSON(floorsFile, (d) => {
+          floorsData = d;
+          onBoth();
+        });
+        readJSON(nodesFile, (d) => {
+          nodes = d;
+          onBoth();
+        });
+      });
+
+      document.getElementById("img-input").addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        img = new Image();
+        img.onload = () => {
+          const meta = currentFloorMeta();
+          meta.image = file.name;
+          // Center image in viewport
+          const rect = viewport.getBoundingClientRect();
+          panX = (rect.width - img.naturalWidth) / 2;
+          panY = (rect.height - img.naturalHeight) / 2;
+          zoom = 1;
+          redraw();
+          setStatus(`Image loaded: ${img.naturalWidth}x${img.naturalHeight}`);
+        };
+        img.src = URL.createObjectURL(file);
+      });
+
+      btnSaveNodes.addEventListener("click", () =>
+        writeJSON("nodes.json", nodes),
+      );
+      btnSaveFloors.addEventListener("click", () =>
+        writeJSON("floors.json", floorsData),
+      );
+
+      /* ── coordinate math ─────────────────────────────────────── */
+      function screenToImage(sx, sy) {
+        return {
+          x: (sx - panX) / zoom,
+          y: (sy - panY) / zoom,
+        };
+      }
+
+      function imageToScreen(ix, iy) {
+        return {
+          x: ix * zoom + panX,
+          y: iy * zoom + panY,
+        };
+      }
+
+      function snapToQuarter(value) {
+        return Math.round(value * 4) / 4;
+      }
+
+      function imageToFeet(ix, iy) {
+        const cal = getCalib();
+        if (!cal.hasOrigin || !cal.hasScale) return null;
+        const fx = (ix - cal.origin[0]) / cal.scale;
+        const fy = -(iy - cal.origin[1]) / cal.scale;
+        return [
+          parseFloat(snapToQuarter(fx).toFixed(2)),
+          parseFloat(snapToQuarter(fy).toFixed(2)),
+        ];
+      }
+
+      function feetToImage(fx, fy) {
+        const cal = getCalib();
+        if (!cal.hasOrigin || !cal.hasScale) return null;
+        return [cal.origin[0] + fx * cal.scale, cal.origin[1] - fy * cal.scale];
+      }
+
+      /* ── viewport sizing ───────────────────────────────────── */
+      function resize() {
+        const rect = viewport.getBoundingClientRect();
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = rect.height * window.devicePixelRatio;
+        canvas.style.width = rect.width + "px";
+        canvas.style.height = rect.height + "px";
+        ctx.setTransform(
+          window.devicePixelRatio,
+          0,
+          0,
+          window.devicePixelRatio,
+          0,
+          0,
+        );
+        redraw();
+      }
+      window.addEventListener("resize", resize);
+
+      /* ── pan / zoom ────────────────────────────────────────── */
+      viewport.addEventListener(
+        "wheel",
+        (e) => {
+          e.preventDefault();
+          const { x: sx, y: sy } = getLocalPos(e);
+          const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+          const newZoom = Math.max(0.1, Math.min(20, zoom * factor));
+          const ratio = newZoom / zoom;
+          panX = sx - (sx - panX) * ratio;
+          panY = sy - (sy - panY) * ratio;
+          zoom = newZoom;
+          redraw();
+        },
+        { passive: false },
+      );
+
+      function getLocalPos(e) {
+        const rect = viewport.getBoundingClientRect();
+        return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      }
+
+      viewport.addEventListener("mousedown", (e) => {
+        if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
+          e.preventDefault();
+          isPanning = true;
+          panStart = { x: e.clientX, y: e.clientY, px: panX, py: panY };
+          viewport.style.cursor = "grabbing";
+        }
+      });
+
+      window.addEventListener("mouseup", () => {
+        if (isPanning) {
+          isPanning = false;
+          viewport.style.cursor = "crosshair";
+        }
+      });
+
+      window.addEventListener("mousemove", (e) => {
+        if (isPanning) {
+          panX = panStart.px + (e.clientX - panStart.x);
+          panY = panStart.py + (e.clientY - panStart.y);
+          redraw();
+        }
+      });
+
+      /* ── calibration modes ─────────────────────────────────── */
+      function setMode(newMode) {
+        mode = newMode;
+        [btnSetOrigin, btnCalNode, btnCalDist].forEach((b) =>
+          b.classList.remove("active"),
+        );
+        if (mode === "set_origin") btnSetOrigin.classList.add("active");
+        if (mode === "cal_node") btnCalNode.classList.add("active");
+        if (mode.startsWith("cal_dist")) btnCalDist.classList.add("active");
+
+        if (mode === "cal_node") {
+          // populate a prompt with known nodes for this floor
+          const known = currentNodes().filter((n) => isPlaced(n));
+          if (!known.length) {
+            alert("No known nodes for this floor.");
+            setMode("place");
+            return;
+          }
+          const opts = known
+            .map((n) => `${n.id} (${n.coords[0]}, ${n.coords[1]})`)
+            .join("\n");
+          const id = prompt(`Select a known node by full ID:\n${opts}`);
+          if (!id || !known.find((n) => n.id === id)) {
+            setMode("place");
+            return;
+          }
+          calNodeId = id;
+          setStatus(`Click the location of ${calNodeId} on the image.`);
+        }
+        if (mode === "cal_dist_start") {
+          calPointA = null;
+          calPointB = null;
+          setStatus("Click start point of known distance on image.");
+        }
+      }
+
+      btnSetOrigin.addEventListener("click", () => setMode("set_origin"));
+      btnCalNode.addEventListener("click", () => {
+        if (!getCalib().hasOrigin) {
+          alert("Set origin first.");
+          return;
+        }
+        setMode("cal_node");
+      });
+      btnCalDist.addEventListener("click", () => {
+        setMode("cal_dist_start");
+      });
+      btnResetCal.addEventListener("click", () => {
+        const meta = currentFloorMeta();
+        meta.origin_px = null;
+        meta.px_per_foot = null;
+        updateCalibInputs();
+        redraw();
+        setStatus("Calibration reset.");
+      });
+
+      /* ── click handling ────────────────────────────────────── */
+      viewport.addEventListener("click", (e) => {
+        if (e.button !== 0) return;
+        if (isPanning) return;
+        if (!img) {
+          setStatus("Load an image first.");
+          return;
+        }
+        const { x: sx, y: sy } = getLocalPos(e);
+        const { x: ix, y: iy } = screenToImage(sx, sy);
+        const meta = currentFloorMeta();
+
+        if (mode === "set_origin") {
+          meta.origin_px = [Math.round(ix * 10) / 10, Math.round(iy * 10) / 10];
+          updateCalibInputs();
+          setStatus(
+            `Origin set to [${meta.origin_px[0]}, ${meta.origin_px[1]}] px`,
+          );
+          setMode("place");
+          redraw();
+          return;
+        }
+
+        if (mode === "cal_node") {
+          const node = nodes.find((n) => n.id === calNodeId);
+          if (!node) {
+            setMode("place");
+            return;
+          }
+          const ox = meta.origin_px[0],
+            oy = meta.origin_px[1];
+          const dx = ix - ox,
+            dy = iy - oy;
+          const fx = node.coords[0],
+            fy = node.coords[1];
+          const feetDist = Math.sqrt(fx * fx + fy * fy);
+          const pixDist = Math.sqrt(dx * dx + dy * dy);
+          if (feetDist < 0.1 || pixDist < 1) {
+            alert(
+              "Node is too close to origin or click is too close to origin.",
+            );
+            return;
+          }
+          meta.px_per_foot = parseFloat((pixDist / feetDist).toFixed(4));
+          updateCalibInputs();
+          setStatus(`Scale set to ${meta.px_per_foot} px/ft from ${calNodeId}`);
+          setMode("place");
+          redraw();
+          return;
+        }
+
+        if (mode === "cal_dist_start") {
+          calPointA = { x: ix, y: iy };
+          setMode("cal_dist_end");
+          setStatus("Click end point of known distance.");
+          return;
+        }
+
+        if (mode === "cal_dist_end") {
+          calPointB = { x: ix, y: iy };
+          const dx = calPointB.x - calPointA.x;
+          const dy = calPointB.y - calPointA.y;
+          const pixDist = Math.sqrt(dx * dx + dy * dy);
+          if (pixDist < 1) {
+            setStatus("Distance too short.");
+            setMode("cal_dist_start");
+            return;
+          }
+          showModalDistance(pixDist);
+          return;
+        }
+
+        // Normal placement
+        const cal = getCalib();
+        if (!cal.hasOrigin) {
+          setStatus("Set origin before placing nodes.");
+          return;
+        }
+        if (!cal.hasScale) {
+          setStatus("Calibrate scale before placing nodes.");
+          return;
+        }
+        if (selectedNodeId === null) {
+          setStatus("Select a node from the sidebar first.");
+          return;
+        }
+        const coords = imageToFeet(ix, iy);
+        const node = nodes.find((n) => n.id === selectedNodeId);
+        if (!node) return;
+        node.coords = coords;
+        setStatus(
+          `Placed "${node.name || node.id}" at [${coords[0]}, ${coords[1]}] ft`,
+        );
+        renderList();
+        redraw();
+      });
+
+      /* ── modal for distance calibration ────────────────────── */
+      function showModalDistance(pixDist) {
+        modalTitle.textContent = "Calibrate with Distance";
+        modalLabel.textContent = `Pixel distance: ${pixDist.toFixed(1)} px. Enter real-world distance in feet:`;
+        modalInput.value = "";
+        modalOverlay.style.display = "flex";
+        modalInput.focus();
+
+        function confirm() {
+          const ft = parseFloat(modalInput.value);
+          if (!ft || ft <= 0) {
+            alert("Enter a positive distance.");
+            return;
+          }
+          const meta = currentFloorMeta();
+          meta.px_per_foot = parseFloat((pixDist / ft).toFixed(4));
+          updateCalibInputs();
+          setStatus(`Scale set to ${meta.px_per_foot} px/ft`);
+          cleanup();
+          setMode("place");
+          redraw();
+        }
+        function cancel() {
+          cleanup();
+          setMode("place");
+        }
+        function cleanup() {
+          modalOverlay.style.display = "none";
+          btnModalConfirm.removeEventListener("click", confirm);
+          btnModalCancel.removeEventListener("click", cancel);
+        }
+        btnModalConfirm.addEventListener("click", confirm);
+        btnModalCancel.addEventListener("click", cancel);
+      }
+
+      /* ── manual calibration edits ──────────────────────────── */
+      function applyManualCalib() {
+        const meta = currentFloorMeta();
+        const ox = parseFloat(originXInput.value);
+        const oy = parseFloat(originYInput.value);
+        const sc = parseFloat(pxPerFootInput.value);
+        if (!isNaN(ox) && !isNaN(oy)) meta.origin_px = [ox, oy];
+        if (!isNaN(sc) && sc > 0) meta.px_per_foot = sc;
+        redraw();
+      }
+      [originXInput, originYInput, pxPerFootInput].forEach((el) =>
+        el.addEventListener("change", applyManualCalib),
+      );
+
+      /* ── add spine ─────────────────────────────────────────── */
+      const btnAddSpine = document.getElementById("btn-add-spine");
+      btnAddSpine.addEventListener("click", () => {
+        if (!nodes.length) {
+          alert("Load nodes.json first.");
+          return;
+        }
+        const building = getBuilding();
+        const floor = parseInt(getFloor());
+        const regex = new RegExp(`^${building}_${floor}_spine_(\\d+)$`, "i");
+        let max = 0;
+        nodes.forEach((n) => {
+          const m = n.id.match(regex);
+          if (m) max = Math.max(max, parseInt(m[1]));
+        });
+        const next = max + 1;
+        const id = `${building}_${floor}_spine_${next}`;
+        nodes.push({
+          id,
+          name: `spine ${next}`,
+          type: "spine",
+          building,
+          coords: [null, null],
+          floor,
+        });
+        selectedNodeId = id;
+        renderList();
+        redraw();
+        setStatus(`Added ${id}`);
+      });
+
+      /* ── add node modal ─────────────────────────────────────── */
+      const btnAddNode = document.getElementById("btn-add-node");
+      const modalOverlayAddNode = document.getElementById(
+        "modal-overlay-add-node",
+      );
+      const addNodeId = document.getElementById("add-node-id");
+      const addNodeName = document.getElementById("add-node-name");
+      const addNodeType = document.getElementById("add-node-type");
+      const addNodeBuilding = document.getElementById("add-node-building");
+      const addNodeFloor = document.getElementById("add-node-floor");
+      const btnAddNodeCancel = document.getElementById("add-node-cancel");
+      const btnAddNodeConfirm = document.getElementById("add-node-confirm");
+
+      btnAddNode.addEventListener("click", () => {
+        if (!nodes.length) {
+          alert("Load nodes.json first.");
+          return;
+        }
+        addNodeBuilding.value = getBuilding();
+        addNodeFloor.value = getFloor();
+        addNodeId.value = "";
+        addNodeName.value = "";
+        addNodeType.value = "room";
+        modalOverlayAddNode.style.display = "flex";
+        addNodeId.focus();
+      });
+
+      btnAddNodeCancel.addEventListener("click", () => {
+        modalOverlayAddNode.style.display = "none";
+      });
+
+      btnAddNodeConfirm.addEventListener("click", () => {
+        const id = addNodeId.value.trim();
+        const name = addNodeName.value.trim();
+        const type = addNodeType.value;
+        const building = getBuilding();
+        const floor = parseInt(getFloor());
+        if (!id) {
+          alert("ID is required.");
+          return;
+        }
+        if (!name) {
+          alert("Name is required.");
+          return;
+        }
+        if (nodes.find((n) => n.id === id)) {
+          alert("ID must be unique.");
+          return;
+        }
+        nodes.push({ id, name, type, building, coords: [null, null], floor });
+        selectedNodeId = id;
+        modalOverlayAddNode.style.display = "none";
+        renderList();
+        redraw();
+        setStatus(`Added ${id}`);
+      });
+
+      /* ── node list ─────────────────────────────────────────── */
+      function renderList() {
+        nodeListEl.innerHTML = "";
+        const list = currentNodes();
+        list.forEach((node) => {
+          const div = document.createElement("div");
+          div.className =
+            "node-item" +
+            (node.id === selectedNodeId ? " selected" : "") +
+            (isPlaced(node) ? " placed" : "");
+          div.innerHTML = `
+      <span class="node-label" title="${node.id}">${node.name || node.id}</span>
+      <span class="node-coords">${isPlaced(node) ? `[${node.coords[0]}, ${node.coords[1]}] ft` : "unset"}</span>
+    `;
+          div.addEventListener("click", () => {
+            if (selectedNodeId === node.id) {
+              selectedNodeId = null;
+            } else {
+              selectedNodeId = node.id;
+              if (isPlaced(node)) centerOnNode(node);
+            }
+            renderList();
+            redraw();
+          });
+          nodeListEl.appendChild(div);
+        });
+        nodeCountEl.textContent = `(${list.length})`;
+      }
+
+      function centerOnNode(node) {
+        const pos = feetToImage(node.coords[0], node.coords[1]);
+        if (!pos) return;
+        const rect = viewport.getBoundingClientRect();
+        panX = rect.width / 2 - pos[0] * zoom;
+        panY = rect.height / 2 - pos[1] * zoom;
+      }
+
+      btnLoad.addEventListener("click", () => {
+        updateCalibInputs();
+        renderList();
+        redraw();
+        setStatus(`Loaded floor ${getBuilding()} ${getFloor()}`);
+      });
+      filterBuilding.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") btnLoad.click();
+      });
+      filterFloor.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") btnLoad.click();
+      });
+
+      /* ── drawing ───────────────────────────────────────────── */
+      function redraw() {
+        const rect = viewport.getBoundingClientRect();
+        const W = rect.width,
+          H = rect.height;
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, W, H);
+
+        if (!img) {
+          ctx.fillStyle = "#888";
+          ctx.textAlign = "center";
+          ctx.font = "14px sans-serif";
+          ctx.fillText("Load an image to begin.", W / 2, H / 2);
+          return;
+        }
+
+        // Draw image
+        const ix = imageToScreen(0, 0).x;
+        const iy = imageToScreen(0, 0).y;
+        const iw = img.naturalWidth * zoom;
+        const ih = img.naturalHeight * zoom;
+        ctx.drawImage(img, ix, iy, iw, ih);
+
+        // If not fully calibrated, draw a light grid over the image
+        const cal = getCalib();
+        ctx.lineWidth = 1;
+        if (!cal.hasOrigin || !cal.hasScale) {
+          ctx.strokeStyle = "rgba(0,0,0,0.06)";
+          for (let gx = 0; gx < img.naturalWidth; gx += 100) {
+            const s = imageToScreen(gx, 0);
+            ctx.beginPath();
+            ctx.moveTo(s.x, 0);
+            ctx.lineTo(s.x, H);
+            ctx.stroke();
+          }
+          for (let gy = 0; gy < img.naturalHeight; gy += 100) {
+            const s = imageToScreen(0, gy);
+            ctx.beginPath();
+            ctx.moveTo(0, s.y);
+            ctx.lineTo(W, s.y);
+            ctx.stroke();
+          }
+        }
+
+        // Origin marker
+        if (cal.hasOrigin) {
+          const o = imageToScreen(cal.origin[0], cal.origin[1]);
+          ctx.strokeStyle = "#e94560";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(o.x - 14, o.y);
+          ctx.lineTo(o.x + 14, o.y);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(o.x, o.y - 14);
+          ctx.lineTo(o.x, o.y + 14);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = "#e94560";
+          ctx.font = "11px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText("Origin (0,0)", o.x, o.y - 18);
+        }
+
+        // Calibration distance line
+        if (mode === "cal_dist_end" && calPointA) {
+          const a = imageToScreen(calPointA.x, calPointA.y);
+          ctx.strokeStyle = "#ffeb3b";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(a.x, a.y, 4, 0, Math.PI * 2);
+          ctx.fillStyle = "#ffeb3b";
+          ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(a.x, a.y);
+          ctx.stroke(); // placeholder, will extend on move? No, only redraw on click, but we don't have mouse pos here. We can live with just start dot until second click.
+        }
+
+        // Nodes
+        const list = currentNodes();
+        list.forEach((node) => {
+          if (!isPlaced(node)) return;
+          const pos = feetToImage(node.coords[0], node.coords[1]);
+          if (!pos) return;
+          const s = imageToScreen(pos[0], pos[1]);
+          const isSel = node.id === selectedNodeId;
+
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, isSel ? 10 : 7, 0, Math.PI * 2);
+          ctx.fillStyle = isSel ? "#e94560" : "#4caf50";
+          ctx.fill();
+          ctx.strokeStyle = "#fff";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          const label = node.name || node.id;
+          ctx.font = `${isSel ? "bold " : ""}12px sans-serif`;
+          ctx.textAlign = "center";
+          ctx.strokeStyle = "rgba(255,255,255,0.9)";
+          ctx.lineWidth = 3;
+          ctx.strokeText(label, s.x, s.y - 14);
+          ctx.fillStyle = "#222";
+          ctx.fillText(label, s.x, s.y - 14);
+        });
+
+        // Crosshair when in calibration modes
+        if (
+          ["set_origin", "cal_node", "cal_dist_start", "cal_dist_end"].includes(
+            mode,
+          )
+        ) {
+          // We don't have live mouse pos here; skip for simplicity
+        }
+      }
+
+      /* ── keyboard shortcuts ──────────────────────────────── */
+      window.addEventListener("keydown", (e) => {
+        // Ctrl+I / Cmd+I: add spine
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "i") {
+          e.preventDefault();
+          if (!nodes.length) {
+            setStatus("Load nodes.json first.");
+            return;
+          }
+          const building = getBuilding();
+          const floor = parseInt(getFloor());
+          const regex = new RegExp(`^${building}_${floor}_spine_(\\d+)$`, "i");
+          let max = 0;
+          nodes.forEach((n) => {
+            const m = n.id.match(regex);
+            if (m) max = Math.max(max, parseInt(m[1]));
+          });
+          const next = max + 1;
+          const id = `${building}_${floor}_spine_${next}`;
+          nodes.push({
+            id,
+            name: `spine ${next}`,
+            type: "spine",
+            building,
+            coords: [null, null],
+            floor,
+          });
+          selectedNodeId = id;
+          renderList();
+          redraw();
+          setStatus(`Added ${id}`);
+        }
+      });
+
+      /* ── init ──────────────────────────────────────────────── */
+      resize();
+      setMode("place");
+    </script>
+  </body>
 </html>

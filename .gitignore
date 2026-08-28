@@ -3,16 +3,18 @@
 
 # Python cache
 __pycache__/
+.pytest_cache/
+.ruff_cache/
 *.pyc
 *.pyo
 *.pyd
+.coverage
+htmlcov/
 
 # Virtual environments
 .venv/
 venv/
 
-# uv build artifacts
-uv.lock
 
 # Flask instance folder (if used)
 instance/

@@ -1,5 +1,4 @@
 import json
-import os
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -9,6 +8,7 @@ EDGES_FILE = DATA_DIR / "edges.json"
 
 
 # JSON helpers
+
 
 def load_json(path):
     path = Path(path)
@@ -31,6 +31,7 @@ def save_json(path, data):
 
 # Add Node
 
+
 def add_node():
     print("\n--- Add New Node ---")
 
@@ -39,7 +40,9 @@ def add_node():
     # Load existing nodes and enforce unique node IDs
     nodes = load_json(NODES_FILE)
     if any(node.get("id") == node_id for node in nodes):
-        print(f"Error: A node with ID '{node_id}' already exists. Please choose a different ID.\n")
+        print(
+            f"Error: A node with ID '{node_id}' already exists. Please choose a different ID.\n"
+        )
         return
 
     x = float(input("Enter X coordinate: ").strip())
@@ -53,7 +56,7 @@ def add_node():
         "name": label,
         "type": node_type,
         "coords": [x, y],
-        "floor": floor
+        "floor": floor,
     }
 
     nodes.append(node)
@@ -63,6 +66,7 @@ def add_node():
 
 
 # Add Edge
+
 
 def add_edge():
     print("\n--- Add New Edge ---")
@@ -89,7 +93,7 @@ def add_edge():
         "source": source,
         "target": target,
         "weight": weight,
-        "instruction": instruction
+        "instruction": instruction,
     }
 
     edges = load_json(EDGES_FILE)
@@ -100,6 +104,7 @@ def add_edge():
 
 
 # Main Menu Loop
+
 
 def main():
     while True:
