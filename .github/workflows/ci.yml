@@ -28,8 +28,10 @@ jobs:
       with:
         cache: npm
       
+      # installs exactly the committed uv.lock and errors if it's out
+      # of date with pyproject.toml.
     - name: "Install dependencies"
-      run: "just install"
+      run: uv sync --locked
 
     - name: "Lint Check"
       run: just lint
