@@ -118,7 +118,7 @@ def main():
 
     if errors:
         print(
-            f"\n✗ {len(errors)} problem(s) found in data/ — fix them, then run `just validate` again."
+            f"\n✗ {len(errors)} problem(s) found in data/ — fix them, then re-run `uv run tools/validate_data.py`."
         )
         sys.exit(1)
 
