@@ -13,8 +13,6 @@ __pycache__/
 .venv/
 venv/
 
-# uv build artifacts
-uv.lock
 
 # Flask instance folder (if used)
 instance/
