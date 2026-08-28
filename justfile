@@ -1,6 +1,3 @@
-# MiniMap commands — this IS the whole manual.
-# Run `just` (no arguments) to see this menu, then pick one word.
-
 # Show this menu
 default:
     just --list
@@ -45,11 +42,12 @@ fix:
 # THE command before pushing
 check: lint format-check test
     uv run python -m compileall -q app run.py tools
-    @echo 'All good - ready to push!'
+    @echo 'All good - ready to push'
 
-# Remove caches and build artifacts (keeps .venv)
+# Remove caches and build artifacts
 clean:
-    rm -rf .pytest_cache .ruff_cache
+    rm -rf .pytest_cache .ruff_cache htmlcov
+    rm -f .coverage
     find . -type d -name __pycache__ -not -path './.venv/*' -prune -exec rm -rf {} +
     rm -f *.pyc *.pyo
     rm -rf dist build
@@ -57,3 +55,7 @@ clean:
 # Run the test suite
 test:
     uv run pytest
+
+# Run tests with coverage report
+coverage:
+    uv run pytest --cov=app --cov-report=term-missing --cov-report=html
