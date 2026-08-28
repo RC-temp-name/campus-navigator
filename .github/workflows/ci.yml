@@ -23,11 +23,6 @@ jobs:
       with:
         enable-cache: true
 
-    - name: "Install node"
-      uses: actions/setup-node@v7
-      with:
-        cache: npm
-      
       # installs exactly the committed uv.lock and errors if it's out
       # of date with pyproject.toml.
     - name: "Install dependencies"
