@@ -10,3 +10,13 @@ dependencies = [
     "matplotlib>=3.10.8",
     "networkx>=3.6.1",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.5.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]  # makes `app` importable from tests/
+
