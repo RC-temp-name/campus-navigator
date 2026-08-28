@@ -1,5 +1,6 @@
-from flask import Blueprint, render_template, jsonify, request
-from app.logic import get_directions, get_options, get_floor_bounds
+from flask import Blueprint, jsonify, render_template, request
+
+from app.logic import get_directions, get_floor_bounds, get_options
 
 bp = Blueprint("main", __name__)
 

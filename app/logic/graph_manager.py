@@ -1,8 +1,8 @@
 import json
-import networkx as nx
-import matplotlib.pyplot as plt
-
 from pathlib import Path
+
+import matplotlib.pyplot as plt
+import networkx as nx
 
 # modular graph
 G = None
@@ -98,7 +98,6 @@ def get_options():
 # method to get direction
 def get_directions(start, end):
 
-    global G
     if G is None:
         reload_graph()
 

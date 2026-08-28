@@ -87,7 +87,7 @@ def generate_edges(connectors):
         else:
             pairs = [
                 (floor_a, floor_b)
-                for floor_a, floor_b in zip(floors, floors[1:])
+                for floor_a, floor_b in itertools.pairwise(floors, floors[1:])
                 if floor_b == floor_a + 1
             ]
 
