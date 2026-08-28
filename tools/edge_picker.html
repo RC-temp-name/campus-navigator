@@ -1,1131 +1,1542 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Edge Picker — Campus Navigator</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: sans-serif; background: #1a1a2e; color: #eee; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-
-    #toolbar {
-      display: flex; align-items: center; gap: 10px;
-      padding: 8px 14px; background: #16213e; border-bottom: 1px solid #0f3460;
-      flex-shrink: 0; flex-wrap: wrap;
-    }
-    #toolbar h1 { font-size: 1rem; color: #e94560; margin-right: 8px; }
-    #toolbar label { font-size: 0.8rem; color: #aaa; white-space: nowrap; }
-    #toolbar input[type=file] { font-size: 0.75rem; }
-    #toolbar input[type=text], #toolbar input[type=number] {
-      padding: 4px 8px; border-radius: 4px; border: 1px solid #0f3460;
-      background: #0f3460; color: #eee; font-size: 0.8rem; width: 70px;
-    }
-    button {
-      padding: 5px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.82rem;
-      background: #0f3460; color: #eee; white-space: nowrap;
-    }
-    #btn-save-edges, #btn-save-nodes, #btn-straighten { background: #e94560; color: #fff; }
-    #btn-save-edges:disabled, #btn-save-nodes:disabled, #btn-straighten:disabled { background: #555; cursor: default; }
-
-    #calibration-panel {
-      background: #0f2240; border-top: 1px solid #0f3460;
-      padding: 6px 14px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; flex-shrink: 0;
-    }
-    #calibration-panel h2 { font-size: 0.85rem; color: #e94560; margin-right: 4px; }
-    #calibration-panel label { font-size: 0.78rem; color: #aaa; }
-    #calibration-panel input[type=number] {
-      width: 75px; padding: 3px 6px; border-radius: 4px; border: 1px solid #0f3460;
-      background: #0f3460; color: #eee; font-size: 0.78rem;
-    }
-    #calibration-panel .cal-warning {
-      font-size: 0.78rem; color: #ffaa00; margin-left: 8px;
-    }
-
-    #main { display: flex; flex: 1; overflow: hidden; }
-
-    #canvas-wrap {
-      position: relative; flex: 1; overflow: hidden; background: #fff;
-      cursor: crosshair; touch-action: none;
-    }
-    canvas { position: absolute; top: 0; left: 0; }
-
-    #sidebar {
-      width: 280px; flex-shrink: 0; background: #16213e;
-      border-left: 1px solid #0f3460; overflow-y: auto; padding: 10px;
-      display: flex; flex-direction: column; gap: 0;
-    }
-    #sidebar h2 { font-size: 0.9rem; color: #e94560; margin-bottom: 8px; }
-    .sidebar-divider { border: none; border-top: 1px solid #0f3460; margin: 10px 0; }
-
-    .node-item {
-      display: flex; align-items: center; gap: 6px;
-      padding: 5px 6px; border-radius: 4px; margin-bottom: 4px;
-      background: #0f3460; font-size: 0.8rem; cursor: pointer;
-    }
-    .node-item:hover { background: #1a4a80; }
-    .node-item.selected { background: #e94560; }
-    .node-item.multi-selected { outline: 2px dashed rgba(233, 69, 96, 0.85); }
-    .node-item .type-dot {
-      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-    }
-    .node-item .node-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .node-item .node-coords { font-size: 0.7rem; color: #888; margin-left: 4px; white-space: nowrap; }
-    .node-item .unplaced-tag {
-      font-size: 0.65rem; color: #ffaa00; margin-left: 2px; flex-shrink: 0;
-    }
-    .node-item.unplaced { opacity: 0.5; }
-
-    .edge-item {
-      display: flex; align-items: center; gap: 6px;
-      padding: 5px 6px; border-radius: 4px; margin-bottom: 4px;
-      background: #0f3460; font-size: 0.8rem;
-    }
-    .edge-item:hover { background: #1a4a80; }
-    .edge-item .edge-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .edge-item .edge-weight { font-size: 0.7rem; color: #aaa; white-space: nowrap; }
-    .edge-item .btn-del {
-      background: #e94560; color: #fff; border: none; border-radius: 3px;
-      padding: 1px 6px; cursor: pointer; font-size: 0.75rem; flex-shrink: 0;
-    }
-    .edge-item .btn-del:hover { background: #c73652; }
-
-    #hint-bar {
-      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
-      background: rgba(0,0,0,0.75); color: #fff; padding: 8px 18px;
-      border-radius: 20px; font-size: 0.8rem; pointer-events: none;
-      display: none;
-    }
-
-    #unplaced-warning {
-      background: #7a3c00; color: #ffd580; font-size: 0.8rem;
-      padding: 7px 14px; text-align: center; flex-shrink: 0;
-      border-bottom: 1px solid #a05000; display: none;
-    }
-
-    #edge-confirm {
-      position: absolute; z-index: 20;
-      bottom: 60px; left: 50%; transform: translateX(-50%);
-      background: #16213e; border: 1px solid #0f3460; border-radius: 8px;
-      padding: 14px 18px; min-width: 280px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
-      display: none;
-    }
-    #edge-confirm h3 { font-size: 0.9rem; color: #e94560; margin-bottom: 10px; }
-    #edge-confirm .confirm-label { font-size: 0.85rem; margin-bottom: 10px; color: #eee; }
-    #edge-confirm .weight-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-    #edge-confirm .weight-row label { font-size: 0.8rem; color: #aaa; }
-    #edge-confirm input[type=number] {
-      width: 80px; padding: 4px 8px; border-radius: 4px;
-      border: 1px solid #0f3460; background: #0f3460; color: #eee; font-size: 0.85rem;
-    }
-    #edge-confirm .confirm-btns { display: flex; gap: 8px; }
-    #btn-confirm-edge { background: #4caf50; color: #fff; }
-    #btn-cancel-edge { background: #555; color: #eee; }
-  </style>
-</head>
-<body>
-
-<div id="toolbar">
-  <h1>Edge Picker</h1>
-
-  <label>Data folder:
-    <input type="file" id="data-dir" webkitdirectory />
-  </label>
-
-  <label>Image (opt):
-    <input type="file" id="img-input" accept="image/*" />
-  </label>
-
-  <label>Building:
-    <input type="text" id="filter-building" placeholder="NPB" />
-  </label>
-
-  <label>Floor:
-    <input type="number" id="filter-floor" placeholder="5" />
-  </label>
-
-  <button id="btn-load">Load</button>
-  <button id="btn-save-edges" disabled>Save edges.json</button>
-  <button id="btn-save-nodes" disabled>Save nodes.json</button>
-  <button id="btn-straighten" disabled>Straighten Selection</button>
-  <button id="btn-reset-view">Reset View</button>
-
-  <label style="display:flex;align-items:center;gap:6px;">
-    <input type="checkbox" id="snap-grid" checked />
-    Snap to ¼ ft
-  </label>
-
-  <span id="status">Select the data/ folder to begin.</span>
-</div>
-
-<div id="calibration-panel">
-  <h2>Calibration</h2>
-  <label>Origin X: <input type="number" step="0.5" id="cal-ox" readonly /></label>
-  <label>Origin Y: <input type="number" step="0.5" id="cal-oy" readonly /></label>
-  <label>px/ft: <input type="number" step="0.01" id="cal-px-ft" readonly /></label>
-  <span id="cal-warning" class="cal-warning" style="display:none;">No calibration — falling back to bounding-box origin.</span>
-</div>
-
-<div id="unplaced-warning">
-  ⚠ Most nodes have no coordinates yet. Use <strong>coord_picker.html</strong> first to place them on the map, then reload nodes.json here.
-</div>
-
-<div id="main">
-  <div id="canvas-wrap">
-    <canvas id="overlay"></canvas>
-  </div>
-
-  <div id="sidebar">
-    <h2>Nodes <span id="node-count"></span></h2>
-    <div id="node-list"></div>
-
-    <hr class="sidebar-divider" />
-
-    <h2>Edges <span id="edge-count"></span></h2>
-    <div id="edge-list"></div>
-  </div>
-
-  <div id="edge-confirm">
-    <h3>Add Connection</h3>
-    <div class="confirm-label" id="confirm-label">Node A ↔ Node B</div>
-    <div class="weight-row">
-      <label>Distance (ft):</label>
-      <input type="number" id="edge-weight" min="1" step="1" value="10" />
-    </div>
-    <div class="confirm-btns">
-      <button id="btn-confirm-edge">Add Edge</button>
-      <button id="btn-cancel-edge">Cancel</button>
-    </div>
-  </div>
-</div>
-
-<div id="hint-bar">Select a node to start an edge.</div>
-
-<script>
-  // ── State ──────────────────────────────────────────────────────────────────
-  let nodes = [];
-  let edges = [];
-  let nodesById = {};
-  let edgeSet = new Set();
-
-  let floorsData = null;
-  let floorMeta = null;
-  let img = null;
-
-  let mousePos = { sx: 0, sy: 0 };   // screen coords under cursor
-  let hoverNodeIndex = null;
-  let hoveredEdgePair = null;
-  let nodeA = null;
-  let nodeB = null;
-  let mode = 'IDLE';   // 'IDLE' | 'SELECTING_B' | 'CONFIRMING'
-  let activeFilter = '';
-  let activeFloor = NaN;
-
-  let zoom = 1;
-  let panX = 0;
-  let panY = 0;
-  let isPanning = false;
-  let panStart = { x: 0, y: 0, px: 0, py: 0 };
-
-  let multiSelection = new Set(); // set of node IDs
-
-  // Calibration read from floorsData
-  let cal = { origin: null, scale: null, hasOrigin: false, hasScale: false };
-
-  // UI toggle
-  let snapGrid = true;
-
-  // ── DOM refs ─────────────────────────────────────────────────────────────────
-  const canvasWrap     = document.getElementById('canvas-wrap');
-  const canvas           = document.getElementById('overlay');
-  const ctx              = canvas.getContext('2d');
-  const nodeListEl       = document.getElementById('node-list');
-  const nodeCountEl      = document.getElementById('node-count');
-  const edgeListEl       = document.getElementById('edge-list');
-  const edgeCountEl      = document.getElementById('edge-count');
-  const statusEl         = document.getElementById('status');
-  const hintBar          = document.getElementById('hint-bar');
-  const filterBuilding   = document.getElementById('filter-building');
-  const filterFloor      = document.getElementById('filter-floor');
-  const btnSaveEdges     = document.getElementById('btn-save-edges');
-  const btnSaveNodes     = document.getElementById('btn-save-nodes');
-  const btnStraighten    = document.getElementById('btn-straighten');
-  const confirmDialog    = document.getElementById('edge-confirm');
-  const confirmLabel     = document.getElementById('confirm-label');
-  const weightInput      = document.getElementById('edge-weight');
-  const warningBanner    = document.getElementById('unplaced-warning');
-  const snapGridCheckbox = document.getElementById('snap-grid');
-  const calOxInput       = document.getElementById('cal-ox');
-  const calOyInput       = document.getElementById('cal-oy');
-  const calPxFtInput     = document.getElementById('cal-px-ft');
-  const calWarning       = document.getElementById('cal-warning');
-
-  function resizeCanvas() {
-    const rect = canvasWrap.getBoundingClientRect();
-    canvas.width  = rect.width * window.devicePixelRatio;
-    canvas.height = rect.height * window.devicePixelRatio;
-    canvas.style.width  = rect.width + 'px';
-    canvas.style.height = rect.height + 'px';
-    ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
-    redraw();
-  }
-
-  window.addEventListener('resize', resizeCanvas);
-
-  // ── Type colors ───────────────────────────────────────────────────────────
-  const TYPE_COLOR = {
-    room:      '#4caf50',
-    elevator:  '#1a9bd6',
-    staircase: '#f4a261',
-    waypoint:  '#a8dadc',
-    spine:     '#9b8dca',
-  };
-  function nodeColor(node) { return TYPE_COLOR[node.type] || '#a8dadc'; }
-
-  // ── Calibration helpers ───────────────────────────────────────────────────
-  function getCalib() {
-    if (!floorMeta) return { origin: null, scale: null, hasOrigin: false, hasScale: false };
-    const hasOrigin = floorMeta.origin_px && Array.isArray(floorMeta.origin_px) && floorMeta.origin_px.length === 2;
-    const hasScale = typeof floorMeta.px_per_foot === 'number' && floorMeta.px_per_foot > 0;
-    return { origin: floorMeta.origin_px, scale: floorMeta.px_per_foot, hasOrigin, hasScale };
-  }
-
-  function updateCalibDisplay() {
-    const c = getCalib();
-    if (c.hasOrigin) {
-      calOxInput.value = c.origin[0];
-      calOyInput.value = c.origin[1];
-    } else {
-      calOxInput.value = '';
-      calOyInput.value = '';
-    }
-    if (c.hasScale) {
-      calPxFtInput.value = c.scale;
-    } else {
-      calPxFtInput.value = '';
-    }
-    calWarning.style.display = (!c.hasOrigin || !c.hasScale) ? 'inline' : 'none';
-    cal = c;
-  }
-
-  // ── Coordinate math (screen ↔ image pixels ↔ feet) ───────────────────────
-  function screenToImage(sx, sy) {
-    return { x: (sx - panX) / zoom, y: (sy - panY) / zoom };
-  }
-
-  function imageToScreen(ix, iy) {
-    return { x: ix * zoom + panX, y: iy * zoom + panY };
-  }
-
-  /* Old fallback: bounding-box origin math (canvas-centered origin) */
-  function getOldScale() {
-    if (!floorMeta) return 4;
-    return Math.min(
-      (canvasWrap.clientWidth * 0.88) / floorMeta.width_feet,
-      (canvasWrap.clientHeight * 0.88) / floorMeta.height_feet
-    );
-  }
-
-  function feetToImageOld(fx, fy) {
-    const s = getOldScale() * zoom;
-    return [
-      canvasWrap.clientWidth / 2 + fx * s + panX,
-      canvasWrap.clientHeight / 2 - fy * s + panY,
-    ];
-  }
-
-  function imageToFeetOld(ix, iy) {
-    const s = getOldScale() * zoom;
-    return [
-      Math.round((ix - canvasWrap.clientWidth / 2 - panX) / s * 10) / 10,
-      Math.round(-(iy - canvasWrap.clientHeight / 2 - panY) / s * 10) / 10,
-    ];
-  }
-
-  /* Calibration-based (px_per_foot + origin_px) from coord_picker.html */
-  function feetToImageCalib(fx, fy) {
-    if (!cal.hasOrigin || !cal.hasScale) return null;
-    return [
-      cal.origin[0] + fx * cal.scale,
-      cal.origin[1] - fy * cal.scale,
-    ];
-  }
-
-  function imageToFeetCalib(ix, iy) {
-    if (!cal.hasOrigin || !cal.hasScale) return null;
-    return [
-      parseFloat(((ix - cal.origin[0]) / cal.scale).toFixed(2)),
-      parseFloat((-(iy - cal.origin[1]) / cal.scale).toFixed(2)),
-    ];
-  }
-
-  /* Unified screen coords for node rendering */
-  function feetToScreen(fx, fy) {
-    if (cal.hasOrigin && cal.hasScale) {
-      const im = feetToImageCalib(fx, fy);
-      if (im) return imageToScreen(im[0], im[1]);
-    }
-    const old = feetToImageOld(fx, fy);
-    return { x: old[0], y: old[1] };
-  }
-
-  function screenToFeet(sx, sy) {
-    const im = screenToImage(sx, sy);
-    if (cal.hasOrigin && cal.hasScale) {
-      const ft = imageToFeetCalib(im.x, im.y);
-      if (ft) return ft;
-    }
-    return imageToFeetOld(im.x, im.y);
-  }
-
-  function isPlaced(node) {
-    return node.coords !== null &&
-           Array.isArray(node.coords) &&
-           node.coords[0] !== null &&
-           node.coords[1] !== null;
-  }
-
-  // ── Quarter-foot helper ─────────────────────────────────────────────────────
-  function roundQuarterFoot(val) {
-    if (!snapGrid) return val;
-    return Math.round(val * 4) / 4;
-  }
-
-  // ── File loaders ───────────────────────────────────────────────────────────
-
-  document.getElementById('data-dir').addEventListener('change', (e) => {
-    const files = Array.from(e.target.files);
-    const floorsFile = files.find(f => f.name === 'floors.json');
-    const nodesFile  = files.find(f => f.name === 'nodes.json');
-    const edgesFile  = files.find(f => f.name === 'edges.json');
-    if (!floorsFile) { setStatus('No floors.json found in selected folder.'); return; }
-    if (!nodesFile)  { setStatus('No nodes.json found in selected folder.');  return; }
-
-    let pending = 2;
-    function onCoreLoaded() {
-      if (--pending > 0) return;
-      nodesById = {};
-      nodes.forEach(n => nodesById[n.id] = n);
-      btnSaveEdges.disabled = false;
-      btnSaveNodes.disabled = false;
-      hintBar.style.display = 'block';
-      updateCalibDisplay();
-      renderNodeList();
-      renderEdgeList();
-      redraw();
-      const placed = nodes.filter(n => isPlaced(n)).length;
-      if (placed === 0) {
-        warningBanner.style.display = 'block';
-        setStatus(`Loaded ${nodes.length} nodes — none placed yet. Use coord_picker.html first!`);
-      } else {
-        warningBanner.style.display = 'none';
-        setStatus(`Loaded ${nodes.length} nodes (${placed} placed) + ${edges.length} directed edges.`);
+  <head>
+    <meta charset="UTF-8" />
+    <title>Edge Picker — Campus Navigator</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
       }
-    }
-    readJSON(floorsFile, (data) => { floorsData = data; onCoreLoaded(); });
-    readJSON(nodesFile,  (data) => { nodes = data;    onCoreLoaded(); });
-    if (edgesFile) readJSON(edgesFile, (data) => {
-      edges = Array.isArray(data) ? data : [];
-      rebuildEdgeSet();
-    });
-  });
+      body {
+        font-family: sans-serif;
+        background: #1a1a2e;
+        color: #eee;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+      }
 
-  document.getElementById('img-input').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    img = new Image();
-    img.onload = () => {
-      // Center image in viewport
-      panX = (canvasWrap.clientWidth - img.naturalWidth) / 2;
-      panY = (canvasWrap.clientHeight - img.naturalHeight) / 2;
-      zoom = 1;
-      redraw();
-      setStatus(`Image loaded: ${img.naturalWidth}x${img.naturalHeight}`);
-    };
-    img.src = URL.createObjectURL(file);
-  });
+      #toolbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 14px;
+        background: #16213e;
+        border-bottom: 1px solid #0f3460;
+        flex-shrink: 0;
+        flex-wrap: wrap;
+      }
+      #toolbar h1 {
+        font-size: 1rem;
+        color: #e94560;
+        margin-right: 8px;
+      }
+      #toolbar label {
+        font-size: 0.8rem;
+        color: #aaa;
+        white-space: nowrap;
+      }
+      #toolbar input[type="file"] {
+        font-size: 0.75rem;
+      }
+      #toolbar input[type="text"],
+      #toolbar input[type="number"] {
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid #0f3460;
+        background: #0f3460;
+        color: #eee;
+        font-size: 0.8rem;
+        width: 70px;
+      }
+      button {
+        padding: 5px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.82rem;
+        background: #0f3460;
+        color: #eee;
+        white-space: nowrap;
+      }
+      #btn-save-edges,
+      #btn-save-nodes,
+      #btn-straighten {
+        background: #e94560;
+        color: #fff;
+      }
+      #btn-save-edges:disabled,
+      #btn-save-nodes:disabled,
+      #btn-straighten:disabled {
+        background: #555;
+        cursor: default;
+      }
 
-  function readJSON(file, cb) {
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try { cb(JSON.parse(ev.target.result)); }
-      catch { alert('Failed to parse ' + file.name); }
-    };
-    reader.readAsText(file);
-  }
+      #calibration-panel {
+        background: #0f2240;
+        border-top: 1px solid #0f3460;
+        padding: 6px 14px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+      }
+      #calibration-panel h2 {
+        font-size: 0.85rem;
+        color: #e94560;
+        margin-right: 4px;
+      }
+      #calibration-panel label {
+        font-size: 0.78rem;
+        color: #aaa;
+      }
+      #calibration-panel input[type="number"] {
+        width: 75px;
+        padding: 3px 6px;
+        border-radius: 4px;
+        border: 1px solid #0f3460;
+        background: #0f3460;
+        color: #eee;
+        font-size: 0.78rem;
+      }
+      #calibration-panel .cal-warning {
+        font-size: 0.78rem;
+        color: #ffaa00;
+        margin-left: 8px;
+      }
 
-  // ── Floor metadata / filters ────────────────────────────────────────────────
+      #main {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
+      }
 
-  document.getElementById('btn-load').addEventListener('click', applyFilter);
-  filterBuilding.addEventListener('keydown', (e) => { if (e.key === 'Enter') applyFilter(); });
-  filterFloor.addEventListener('keydown',    (e) => { if (e.key === 'Enter') applyFilter(); });
+      #canvas-wrap {
+        position: relative;
+        flex: 1;
+        overflow: hidden;
+        background: #fff;
+        cursor: crosshair;
+        touch-action: none;
+      }
+      canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
 
-  function applyFilter() {
-    activeFilter = filterBuilding.value.trim().toLowerCase();
-    activeFloor  = parseInt(filterFloor.value.trim());
-    tryUpdateFloorMeta();
-    renderNodeList();
-    renderEdgeList();
-    redraw();
-  }
+      #sidebar {
+        width: 280px;
+        flex-shrink: 0;
+        background: #16213e;
+        border-left: 1px solid #0f3460;
+        overflow-y: auto;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+      }
+      #sidebar h2 {
+        font-size: 0.9rem;
+        color: #e94560;
+        margin-bottom: 8px;
+      }
+      .sidebar-divider {
+        border: none;
+        border-top: 1px solid #0f3460;
+        margin: 10px 0;
+      }
 
-  function tryUpdateFloorMeta() {
-    if (!floorsData) return;
-    const b = (filterBuilding.value.trim() || 'NPB').toUpperCase();
-    const f = filterFloor.value.trim() || '5';
-    if (floorsData[b] && floorsData[b][f]) {
-      floorMeta = floorsData[b][f];
-      updateCalibDisplay();
-    }
-  }
+      .node-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 6px;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        background: #0f3460;
+        font-size: 0.8rem;
+        cursor: pointer;
+      }
+      .node-item:hover {
+        background: #1a4a80;
+      }
+      .node-item.selected {
+        background: #e94560;
+      }
+      .node-item.multi-selected {
+        outline: 2px dashed rgba(233, 69, 96, 0.85);
+      }
+      .node-item .type-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .node-item .node-label {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .node-item .node-coords {
+        font-size: 0.7rem;
+        color: #888;
+        margin-left: 4px;
+        white-space: nowrap;
+      }
+      .node-item .unplaced-tag {
+        font-size: 0.65rem;
+        color: #ffaa00;
+        margin-left: 2px;
+        flex-shrink: 0;
+      }
+      .node-item.unplaced {
+        opacity: 0.5;
+      }
 
-  snapGridCheckbox.addEventListener('change', (e) => {
-    snapGrid = e.target.checked;
-    setStatus(snapGrid ? 'Snap to ¼ ft grid ON' : 'Snap to ¼ ft grid OFF');
-  });
+      .edge-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 6px;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        background: #0f3460;
+        font-size: 0.8rem;
+      }
+      .edge-item:hover {
+        background: #1a4a80;
+      }
+      .edge-item .edge-label {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .edge-item .edge-weight {
+        font-size: 0.7rem;
+        color: #aaa;
+        white-space: nowrap;
+      }
+      .edge-item .btn-del {
+        background: #e94560;
+        color: #fff;
+        border: none;
+        border-radius: 3px;
+        padding: 1px 6px;
+        cursor: pointer;
+        font-size: 0.75rem;
+        flex-shrink: 0;
+      }
+      .edge-item .btn-del:hover {
+        background: #c73652;
+      }
 
-  // ── Zoom & pan ─────────────────────────────────────────────────────────────
-  canvasWrap.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    const { sx, sy } = getLocalPos(e);
-    const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-    const newZoom = Math.max(0.1, Math.min(20, zoom * factor));
-    const ratio = newZoom / zoom;
-    panX = sx - (sx - panX) * ratio;
-    panY = sy - (sy - panY) * ratio;
-    zoom = newZoom;
-    redraw();
-  }, { passive: false });
+      #hint-bar {
+        position: fixed;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.75);
+        color: #fff;
+        padding: 8px 18px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        pointer-events: none;
+        display: none;
+      }
 
-  canvasWrap.addEventListener('mousedown', (e) => {
-    if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
-      e.preventDefault();
-      isPanning = true;
-      panStart = { x: e.clientX, y: e.clientY, px: panX, py: panY };
-      canvasWrap.style.cursor = 'grabbing';
-    }
-  });
+      #unplaced-warning {
+        background: #7a3c00;
+        color: #ffd580;
+        font-size: 0.8rem;
+        padding: 7px 14px;
+        text-align: center;
+        flex-shrink: 0;
+        border-bottom: 1px solid #a05000;
+        display: none;
+      }
 
-  document.addEventListener('mouseup', () => {
-    if (isPanning) {
-      isPanning = false;
-      canvasWrap.style.cursor = 'crosshair';
-    }
-  });
+      #edge-confirm {
+        position: absolute;
+        z-index: 20;
+        bottom: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #16213e;
+        border: 1px solid #0f3460;
+        border-radius: 8px;
+        padding: 14px 18px;
+        min-width: 280px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+        display: none;
+      }
+      #edge-confirm h3 {
+        font-size: 0.9rem;
+        color: #e94560;
+        margin-bottom: 10px;
+      }
+      #edge-confirm .confirm-label {
+        font-size: 0.85rem;
+        margin-bottom: 10px;
+        color: #eee;
+      }
+      #edge-confirm .weight-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      #edge-confirm .weight-row label {
+        font-size: 0.8rem;
+        color: #aaa;
+      }
+      #edge-confirm input[type="number"] {
+        width: 80px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid #0f3460;
+        background: #0f3460;
+        color: #eee;
+        font-size: 0.85rem;
+      }
+      #edge-confirm .confirm-btns {
+        display: flex;
+        gap: 8px;
+      }
+      #btn-confirm-edge {
+        background: #4caf50;
+        color: #fff;
+      }
+      #btn-cancel-edge {
+        background: #555;
+        color: #eee;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="toolbar">
+      <h1>Edge Picker</h1>
 
-  document.addEventListener('mousemove', (e) => {
-    if (isPanning) {
-      panX = panStart.px + (e.clientX - panStart.x);
-      panY = panStart.py + (e.clientY - panStart.y);
-      redraw();
-      return;
-    }
-    const { sx, sy } = getLocalPos(e);
-    mousePos = { sx, sy };
-    const idx = findNodeNear(sx, sy);
-    if (idx !== hoverNodeIndex) {
-      hoverNodeIndex = idx;
-      redraw();
-    } else if (mode === 'SELECTING_B') {
-      redraw();
-    }
-  });
+      <label
+        >Data folder:
+        <input type="file" id="data-dir" webkitdirectory />
+      </label>
 
-  function getLocalPos(e) {
-    const rect = canvasWrap.getBoundingClientRect();
-    return { sx: e.clientX - rect.left, sy: e.clientY - rect.top };
-  }
+      <label
+        >Image (opt):
+        <input type="file" id="img-input" accept="image/*" />
+      </label>
 
-  function resetView() {
-    zoom = 1;
-    panX = img ? (canvasWrap.clientWidth - img.naturalWidth) / 2 : 0;
-    panY = img ? (canvasWrap.clientHeight - img.naturalHeight) / 2 : 0;
-    redraw();
-  }
+      <label
+        >Building:
+        <input type="text" id="filter-building" placeholder="NPB" />
+      </label>
 
-  document.getElementById('btn-reset-view').addEventListener('click', resetView);
+      <label
+        >Floor:
+        <input type="number" id="filter-floor" placeholder="5" />
+      </label>
 
-  // ── Canvas click ───────────────────────────────────────────────────────────
-  canvasWrap.addEventListener('click', (e) => {
-    if (mode === 'CONFIRMING') return;
-    if (isPanning) return;
-    const { sx, sy } = getLocalPos(e);
-    const idx = findNodeNear(sx, sy);
+      <button id="btn-load">Load</button>
+      <button id="btn-save-edges" disabled>Save edges.json</button>
+      <button id="btn-save-nodes" disabled>Save nodes.json</button>
+      <button id="btn-straighten" disabled>Straighten Selection</button>
+      <button id="btn-reset-view">Reset View</button>
 
-    if (e.shiftKey) {
-      // Shift-click: toggle multi-selection
-      if (idx !== null) {
-        const node = nodes[idx];
-        if (multiSelection.has(node.id)) {
-          multiSelection.delete(node.id);
-        } else {
-          multiSelection.add(node.id);
-        }
-        renderNodeList();
+      <label style="display: flex; align-items: center; gap: 6px">
+        <input type="checkbox" id="snap-grid" checked />
+        Snap to ¼ ft
+      </label>
+
+      <span id="status">Select the data/ folder to begin.</span>
+    </div>
+
+    <div id="calibration-panel">
+      <h2>Calibration</h2>
+      <label
+        >Origin X: <input type="number" step="0.5" id="cal-ox" readonly
+      /></label>
+      <label
+        >Origin Y: <input type="number" step="0.5" id="cal-oy" readonly
+      /></label>
+      <label
+        >px/ft: <input type="number" step="0.01" id="cal-px-ft" readonly
+      /></label>
+      <span id="cal-warning" class="cal-warning" style="display: none"
+        >No calibration — falling back to bounding-box origin.</span
+      >
+    </div>
+
+    <div id="unplaced-warning">
+      ⚠ Most nodes have no coordinates yet. Use
+      <strong>coord_picker.html</strong> first to place them on the map, then
+      reload nodes.json here.
+    </div>
+
+    <div id="main">
+      <div id="canvas-wrap">
+        <canvas id="overlay"></canvas>
+      </div>
+
+      <div id="sidebar">
+        <h2>Nodes <span id="node-count"></span></h2>
+        <div id="node-list"></div>
+
+        <hr class="sidebar-divider" />
+
+        <h2>Edges <span id="edge-count"></span></h2>
+        <div id="edge-list"></div>
+      </div>
+
+      <div id="edge-confirm">
+        <h3>Add Connection</h3>
+        <div class="confirm-label" id="confirm-label">Node A ↔ Node B</div>
+        <div class="weight-row">
+          <label>Distance (ft):</label>
+          <input type="number" id="edge-weight" min="1" step="1" value="10" />
+        </div>
+        <div class="confirm-btns">
+          <button id="btn-confirm-edge">Add Edge</button>
+          <button id="btn-cancel-edge">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="hint-bar">Select a node to start an edge.</div>
+
+    <script>
+      // ── State ──────────────────────────────────────────────────────────────────
+      let nodes = [];
+      let edges = [];
+      let nodesById = {};
+      let edgeSet = new Set();
+
+      let floorsData = null;
+      let floorMeta = null;
+      let img = null;
+
+      let mousePos = { sx: 0, sy: 0 }; // screen coords under cursor
+      let hoverNodeIndex = null;
+      let hoveredEdgePair = null;
+      let nodeA = null;
+      let nodeB = null;
+      let mode = "IDLE"; // 'IDLE' | 'SELECTING_B' | 'CONFIRMING'
+      let activeFilter = "";
+      let activeFloor = NaN;
+
+      let zoom = 1;
+      let panX = 0;
+      let panY = 0;
+      let isPanning = false;
+      let panStart = { x: 0, y: 0, px: 0, py: 0 };
+
+      let multiSelection = new Set(); // set of node IDs
+
+      // Calibration read from floorsData
+      let cal = {
+        origin: null,
+        scale: null,
+        hasOrigin: false,
+        hasScale: false,
+      };
+
+      // UI toggle
+      let snapGrid = true;
+
+      // ── DOM refs ─────────────────────────────────────────────────────────────────
+      const canvasWrap = document.getElementById("canvas-wrap");
+      const canvas = document.getElementById("overlay");
+      const ctx = canvas.getContext("2d");
+      const nodeListEl = document.getElementById("node-list");
+      const nodeCountEl = document.getElementById("node-count");
+      const edgeListEl = document.getElementById("edge-list");
+      const edgeCountEl = document.getElementById("edge-count");
+      const statusEl = document.getElementById("status");
+      const hintBar = document.getElementById("hint-bar");
+      const filterBuilding = document.getElementById("filter-building");
+      const filterFloor = document.getElementById("filter-floor");
+      const btnSaveEdges = document.getElementById("btn-save-edges");
+      const btnSaveNodes = document.getElementById("btn-save-nodes");
+      const btnStraighten = document.getElementById("btn-straighten");
+      const confirmDialog = document.getElementById("edge-confirm");
+      const confirmLabel = document.getElementById("confirm-label");
+      const weightInput = document.getElementById("edge-weight");
+      const warningBanner = document.getElementById("unplaced-warning");
+      const snapGridCheckbox = document.getElementById("snap-grid");
+      const calOxInput = document.getElementById("cal-ox");
+      const calOyInput = document.getElementById("cal-oy");
+      const calPxFtInput = document.getElementById("cal-px-ft");
+      const calWarning = document.getElementById("cal-warning");
+
+      function resizeCanvas() {
+        const rect = canvasWrap.getBoundingClientRect();
+        canvas.width = rect.width * window.devicePixelRatio;
+        canvas.height = rect.height * window.devicePixelRatio;
+        canvas.style.width = rect.width + "px";
+        canvas.style.height = rect.height + "px";
+        ctx.setTransform(
+          window.devicePixelRatio,
+          0,
+          0,
+          window.devicePixelRatio,
+          0,
+          0,
+        );
         redraw();
       }
-      return;
-    }
 
-    // Normal click: clear multi-selection first
-    if (multiSelection.size > 0) {
-      multiSelection.clear();
-      renderNodeList();
-      redraw();
-    }
+      window.addEventListener("resize", resizeCanvas);
 
-    if (idx === null) return;
+      // ── Type colors ───────────────────────────────────────────────────────────
+      const TYPE_COLOR = {
+        room: "#4caf50",
+        elevator: "#1a9bd6",
+        staircase: "#f4a261",
+        waypoint: "#a8dadc",
+        spine: "#9b8dca",
+      };
+      function nodeColor(node) {
+        return TYPE_COLOR[node.type] || "#a8dadc";
+      }
 
-    if (mode === 'IDLE') {
-      nodeA = nodes[idx];
-      mode  = 'SELECTING_B';
-      setHint(`"${nodeA.name || nodeA.id}" selected — now click the second node. (Esc to cancel)`);
-      renderNodeList();
-      redraw();
-    } else if (mode === 'SELECTING_B') {
-      if (nodes[idx].id === nodeA.id) return;
-      nodeB = nodes[idx];
+      // ── Calibration helpers ───────────────────────────────────────────────────
+      function getCalib() {
+        if (!floorMeta)
+          return {
+            origin: null,
+            scale: null,
+            hasOrigin: false,
+            hasScale: false,
+          };
+        const hasOrigin =
+          floorMeta.origin_px &&
+          Array.isArray(floorMeta.origin_px) &&
+          floorMeta.origin_px.length === 2;
+        const hasScale =
+          typeof floorMeta.px_per_foot === "number" &&
+          floorMeta.px_per_foot > 0;
+        return {
+          origin: floorMeta.origin_px,
+          scale: floorMeta.px_per_foot,
+          hasOrigin,
+          hasScale,
+        };
+      }
 
-      // ── EDGE AUTO-SNAP ──
-      if (isPlaced(nodeA) && isPlaced(nodeB)) {
-        const [ax, ay] = nodeA.coords;
-        const [bx, by] = nodeB.coords;
-        const dx = Math.abs(bx - ax);
-        const dy = Math.abs(by - ay);
-        let snapped = false;
-        let oldVal, newVal, axis;
-        if (dy < dx) {
-          // Snap Y: horizontal edge
-          oldVal = by;
-          newVal = roundQuarterFoot(ay);
-          axis = 'Y';
-          nodeB.coords[1] = newVal;
-          snapped = true;
-        } else if (dx < dy) {
-          // Snap X: vertical edge
-          oldVal = bx;
-          newVal = roundQuarterFoot(ax);
-          axis = 'X';
-          nodeB.coords[0] = newVal;
-          snapped = true;
+      function updateCalibDisplay() {
+        const c = getCalib();
+        if (c.hasOrigin) {
+          calOxInput.value = c.origin[0];
+          calOyInput.value = c.origin[1];
+        } else {
+          calOxInput.value = "";
+          calOyInput.value = "";
         }
-        if (snapped) {
+        if (c.hasScale) {
+          calPxFtInput.value = c.scale;
+        } else {
+          calPxFtInput.value = "";
+        }
+        calWarning.style.display =
+          !c.hasOrigin || !c.hasScale ? "inline" : "none";
+        cal = c;
+      }
+
+      // ── Coordinate math (screen ↔ image pixels ↔ feet) ───────────────────────
+      function screenToImage(sx, sy) {
+        return { x: (sx - panX) / zoom, y: (sy - panY) / zoom };
+      }
+
+      function imageToScreen(ix, iy) {
+        return { x: ix * zoom + panX, y: iy * zoom + panY };
+      }
+
+      /* Old fallback: bounding-box origin math (canvas-centered origin) */
+      function getOldScale() {
+        if (!floorMeta) return 4;
+        return Math.min(
+          (canvasWrap.clientWidth * 0.88) / floorMeta.width_feet,
+          (canvasWrap.clientHeight * 0.88) / floorMeta.height_feet,
+        );
+      }
+
+      function feetToImageOld(fx, fy) {
+        const s = getOldScale() * zoom;
+        return [
+          canvasWrap.clientWidth / 2 + fx * s + panX,
+          canvasWrap.clientHeight / 2 - fy * s + panY,
+        ];
+      }
+
+      function imageToFeetOld(ix, iy) {
+        const s = getOldScale() * zoom;
+        return [
+          Math.round(((ix - canvasWrap.clientWidth / 2 - panX) / s) * 10) / 10,
+          Math.round((-(iy - canvasWrap.clientHeight / 2 - panY) / s) * 10) /
+            10,
+        ];
+      }
+
+      /* Calibration-based (px_per_foot + origin_px) from coord_picker.html */
+      function feetToImageCalib(fx, fy) {
+        if (!cal.hasOrigin || !cal.hasScale) return null;
+        return [cal.origin[0] + fx * cal.scale, cal.origin[1] - fy * cal.scale];
+      }
+
+      function imageToFeetCalib(ix, iy) {
+        if (!cal.hasOrigin || !cal.hasScale) return null;
+        return [
+          parseFloat(((ix - cal.origin[0]) / cal.scale).toFixed(2)),
+          parseFloat((-(iy - cal.origin[1]) / cal.scale).toFixed(2)),
+        ];
+      }
+
+      /* Unified screen coords for node rendering */
+      function feetToScreen(fx, fy) {
+        if (cal.hasOrigin && cal.hasScale) {
+          const im = feetToImageCalib(fx, fy);
+          if (im) return imageToScreen(im[0], im[1]);
+        }
+        const old = feetToImageOld(fx, fy);
+        return { x: old[0], y: old[1] };
+      }
+
+      function screenToFeet(sx, sy) {
+        const im = screenToImage(sx, sy);
+        if (cal.hasOrigin && cal.hasScale) {
+          const ft = imageToFeetCalib(im.x, im.y);
+          if (ft) return ft;
+        }
+        return imageToFeetOld(im.x, im.y);
+      }
+
+      function isPlaced(node) {
+        return (
+          node.coords !== null &&
+          Array.isArray(node.coords) &&
+          node.coords[0] !== null &&
+          node.coords[1] !== null
+        );
+      }
+
+      // ── Quarter-foot helper ─────────────────────────────────────────────────────
+      function roundQuarterFoot(val) {
+        if (!snapGrid) return val;
+        return Math.round(val * 4) / 4;
+      }
+
+      // ── File loaders ───────────────────────────────────────────────────────────
+
+      document.getElementById("data-dir").addEventListener("change", (e) => {
+        const files = Array.from(e.target.files);
+        const floorsFile = files.find((f) => f.name === "floors.json");
+        const nodesFile = files.find((f) => f.name === "nodes.json");
+        const edgesFile = files.find((f) => f.name === "edges.json");
+        if (!floorsFile) {
+          setStatus("No floors.json found in selected folder.");
+          return;
+        }
+        if (!nodesFile) {
+          setStatus("No nodes.json found in selected folder.");
+          return;
+        }
+
+        let pending = 2;
+        function onCoreLoaded() {
+          if (--pending > 0) return;
+          nodesById = {};
+          nodes.forEach((n) => (nodesById[n.id] = n));
+          btnSaveEdges.disabled = false;
+          btnSaveNodes.disabled = false;
+          hintBar.style.display = "block";
+          updateCalibDisplay();
           renderNodeList();
-          setStatus(`Snapped ${nodeB.id} ${axis} from ${oldVal} → ${newVal} for alignment.`);
-        }
-      }
-
-      openConfirmDialog();
-    }
-  });
-
-  // ── Keyboard ───────────────────────────────────────────────────────────────
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && (mode === 'SELECTING_B' || mode === 'CONFIRMING')) resetMode();
-    if (e.key === 'Enter'  && mode === 'CONFIRMING') confirmEdge();
-  });
-
-  // ── Confirm dialog ─────────────────────────────────────────────────────────
-  function openConfirmDialog() {
-    mode = 'CONFIRMING';
-    confirmLabel.textContent = `${nodeA.name || nodeA.id} ↔ ${nodeB.name || nodeB.id}`;
-
-    if (isPlaced(nodeA) && isPlaced(nodeB)) {
-      const [ax, ay] = nodeA.coords;
-      const [bx, by] = nodeB.coords;
-      weightInput.value = Math.max(1, Math.round(Math.hypot(bx - ax, by - ay)));
-    } else {
-      weightInput.value = 10;
-    }
-
-    confirmDialog.style.display = 'block';
-    weightInput.focus();
-    weightInput.select();
-    setHint('Confirm or cancel the new connection.');
-  }
-
-  document.getElementById('btn-confirm-edge').addEventListener('click', confirmEdge);
-  document.getElementById('btn-cancel-edge').addEventListener('click', resetMode);
-
-  function confirmEdge() {
-    const w = Math.max(1, parseInt(weightInput.value, 10) || 10);
-    const key = `${nodeA.id}|${nodeB.id}`;
-    if (edgeSet.has(key)) {
-      setStatus('Edge already exists — skipped.');
-      resetMode();
-      return;
-    }
-    edges.push({ source: nodeA.id, target: nodeB.id, weight: w, instruction: makeInstruction(nodeA, nodeB) });
-    edges.push({ source: nodeB.id, target: nodeA.id, weight: w, instruction: makeInstruction(nodeB, nodeA) });
-    edgeSet.add(`${nodeA.id}|${nodeB.id}`);
-    edgeSet.add(`${nodeB.id}|${nodeA.id}`);
-    setStatus(`Added: ${nodeA.name || nodeA.id} ↔ ${nodeB.name || nodeB.id} (w=${w})`);
-    renderEdgeList();
-    redraw();
-    resetMode();
-  }
-
-  function resetMode() {
-    mode  = 'IDLE';
-    nodeA = null;
-    nodeB = null;
-    confirmDialog.style.display = 'none';
-    setHint('Select a node to start an edge.');
-    renderNodeList();
-    redraw();
-  }
-
-  // ── makeInstruction ────────────────────────────────────────────────────────
-  function makeInstruction(fromNode, toNode) {
-    const fromName = fromNode.name || fromNode.id;
-    const toName   = toNode.name   || toNode.id;
-    if (fromNode.type === 'room') return `Exit room ${fromName} and continue.`;
-    if (toNode.type   === 'room') return `Enter room ${toName}.`;
-    return `Continue toward ${toName}.`;
-  }
-
-  // ── Edge set helpers ───────────────────────────────────────────────────────
-  function rebuildEdgeSet() {
-    edgeSet = new Set(edges.map(e => `${e.source}|${e.target}`));
-  }
-
-  function uniquePairCount() {
-    const seen = new Set();
-    edges.forEach(e => { seen.add([e.source, e.target].sort().join('|')); });
-    return seen.size;
-  }
-
-  function deleteEdgePair(srcId, tgtId) {
-    edges = edges.filter(e =>
-      !((e.source === srcId && e.target === tgtId) ||
-        (e.source === tgtId && e.target === srcId))
-    );
-    edgeSet.delete(`${srcId}|${tgtId}`);
-    edgeSet.delete(`${tgtId}|${srcId}`);
-    renderEdgeList();
-    redraw();
-    setStatus(`Deleted: ${srcId} ↔ ${tgtId}`);
-  }
-
-  // ── Multi-node straighten ──────────────────────────────────────────────────
-  btnStraighten.addEventListener('click', () => {
-    if (multiSelection.size < 2) return;
-    const selected = nodes.filter(n => multiSelection.has(n.id) && isPlaced(n));
-    if (selected.length < 2) return;
-
-    const xs = selected.map(n => n.coords[0]);
-    const ys = selected.map(n => n.coords[1]);
-    const xRange = Math.max(...xs) - Math.min(...xs);
-    const yRange = Math.max(...ys) - Math.min(...ys);
-
-    let snapAxis, snapValue;
-    if (yRange > xRange) {
-      // Vertically oriented: snap X to average X
-      snapAxis = 'X';
-      snapValue = roundQuarterFoot(xs.reduce((a, b) => a + b, 0) / xs.length);
-      selected.forEach(n => n.coords[0] = snapValue);
-    } else {
-      // Horizontally oriented (or equal): snap Y to average Y
-      snapAxis = 'Y';
-      snapValue = roundQuarterFoot(ys.reduce((a, b) => a + b, 0) / ys.length);
-      selected.forEach(n => n.coords[1] = snapValue);
-    }
-
-    setStatus(`Straightened ${selected.length} nodes, snapped ${snapAxis} to ${snapValue}.`);
-    renderNodeList();
-    redraw();
-  });
-
-  // ── Filter helpers ───────────────────────────────────────────────────────
-  function nodeVisible(node) {
-    if (activeFilter && (node.building || '').toLowerCase() !== activeFilter) return false;
-    if (!isNaN(activeFloor) && node.floor !== activeFloor) return false;
-    return true;
-  }
-
-  // ── renderNodeList ─────────────────────────────────────────────────────────
-  function renderNodeList() {
-    nodeListEl.innerHTML = '';
-    let shown = 0;
-    btnStraighten.disabled = multiSelection.size < 2;
-    nodes.forEach((node, i) => {
-      if (!nodeVisible(node)) return;
-      const div = document.createElement('div');
-      const isSel = nodeA && node.id === nodeA.id;
-      const isMulti = multiSelection.has(node.id);
-      div.className = 'node-item' + (isSel ? ' selected' : '') + (isMulti ? ' multi-selected' : '');
-      if (!isPlaced(node)) div.classList.add('unplaced');
-
-      const dot = document.createElement('span');
-      dot.className = 'type-dot';
-      dot.style.background = isSel ? '#fff' : nodeColor(node);
-
-      const label = document.createElement('span');
-      label.className = 'node-label';
-      label.title = node.id;
-      label.textContent = node.name || node.id;
-
-      const coordsSpan = document.createElement('span');
-      coordsSpan.className = 'node-coords';
-      coordsSpan.textContent = isPlaced(node) ? `[${node.coords[0]}, ${node.coords[1]}]` : '';
-
-      div.appendChild(dot);
-      div.appendChild(label);
-      div.appendChild(coordsSpan);
-
-      if (!isPlaced(node)) {
-        const tag = document.createElement('span');
-        tag.className = 'unplaced-tag';
-        tag.textContent = '?';
-        tag.title = 'No coordinates — place this node in coord_picker.html first';
-        div.appendChild(tag);
-      }
-
-      div.addEventListener('click', (e) => {
-        if (mode === 'CONFIRMING') return;
-        if (e.shiftKey) {
-          if (multiSelection.has(node.id)) {
-            multiSelection.delete(node.id);
+          renderEdgeList();
+          redraw();
+          const placed = nodes.filter((n) => isPlaced(n)).length;
+          if (placed === 0) {
+            warningBanner.style.display = "block";
+            setStatus(
+              `Loaded ${nodes.length} nodes — none placed yet. Use coord_picker.html first!`,
+            );
           } else {
-            multiSelection.add(node.id);
+            warningBanner.style.display = "none";
+            setStatus(
+              `Loaded ${nodes.length} nodes (${placed} placed) + ${edges.length} directed edges.`,
+            );
           }
-          renderNodeList();
+        }
+        readJSON(floorsFile, (data) => {
+          floorsData = data;
+          onCoreLoaded();
+        });
+        readJSON(nodesFile, (data) => {
+          nodes = data;
+          onCoreLoaded();
+        });
+        if (edgesFile)
+          readJSON(edgesFile, (data) => {
+            edges = Array.isArray(data) ? data : [];
+            rebuildEdgeSet();
+          });
+      });
+
+      document.getElementById("img-input").addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        img = new Image();
+        img.onload = () => {
+          // Center image in viewport
+          panX = (canvasWrap.clientWidth - img.naturalWidth) / 2;
+          panY = (canvasWrap.clientHeight - img.naturalHeight) / 2;
+          zoom = 1;
+          redraw();
+          setStatus(`Image loaded: ${img.naturalWidth}x${img.naturalHeight}`);
+        };
+        img.src = URL.createObjectURL(file);
+      });
+
+      function readJSON(file, cb) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          try {
+            cb(JSON.parse(ev.target.result));
+          } catch {
+            alert("Failed to parse " + file.name);
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      // ── Floor metadata / filters ────────────────────────────────────────────────
+
+      document
+        .getElementById("btn-load")
+        .addEventListener("click", applyFilter);
+      filterBuilding.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") applyFilter();
+      });
+      filterFloor.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") applyFilter();
+      });
+
+      function applyFilter() {
+        activeFilter = filterBuilding.value.trim().toLowerCase();
+        activeFloor = parseInt(filterFloor.value.trim());
+        tryUpdateFloorMeta();
+        renderNodeList();
+        renderEdgeList();
+        redraw();
+      }
+
+      function tryUpdateFloorMeta() {
+        if (!floorsData) return;
+        const b = (filterBuilding.value.trim() || "NPB").toUpperCase();
+        const f = filterFloor.value.trim() || "5";
+        if (floorsData[b] && floorsData[b][f]) {
+          floorMeta = floorsData[b][f];
+          updateCalibDisplay();
+        }
+      }
+
+      snapGridCheckbox.addEventListener("change", (e) => {
+        snapGrid = e.target.checked;
+        setStatus(snapGrid ? "Snap to ¼ ft grid ON" : "Snap to ¼ ft grid OFF");
+      });
+
+      // ── Zoom & pan ─────────────────────────────────────────────────────────────
+      canvasWrap.addEventListener(
+        "wheel",
+        (e) => {
+          e.preventDefault();
+          const { sx, sy } = getLocalPos(e);
+          const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+          const newZoom = Math.max(0.1, Math.min(20, zoom * factor));
+          const ratio = newZoom / zoom;
+          panX = sx - (sx - panX) * ratio;
+          panY = sy - (sy - panY) * ratio;
+          zoom = newZoom;
+          redraw();
+        },
+        { passive: false },
+      );
+
+      canvasWrap.addEventListener("mousedown", (e) => {
+        if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
+          e.preventDefault();
+          isPanning = true;
+          panStart = { x: e.clientX, y: e.clientY, px: panX, py: panY };
+          canvasWrap.style.cursor = "grabbing";
+        }
+      });
+
+      document.addEventListener("mouseup", () => {
+        if (isPanning) {
+          isPanning = false;
+          canvasWrap.style.cursor = "crosshair";
+        }
+      });
+
+      document.addEventListener("mousemove", (e) => {
+        if (isPanning) {
+          panX = panStart.px + (e.clientX - panStart.x);
+          panY = panStart.py + (e.clientY - panStart.y);
           redraw();
           return;
         }
-        // normal click
+        const { sx, sy } = getLocalPos(e);
+        mousePos = { sx, sy };
+        const idx = findNodeNear(sx, sy);
+        if (idx !== hoverNodeIndex) {
+          hoverNodeIndex = idx;
+          redraw();
+        } else if (mode === "SELECTING_B") {
+          redraw();
+        }
+      });
+
+      function getLocalPos(e) {
+        const rect = canvasWrap.getBoundingClientRect();
+        return { sx: e.clientX - rect.left, sy: e.clientY - rect.top };
+      }
+
+      function resetView() {
+        zoom = 1;
+        panX = img ? (canvasWrap.clientWidth - img.naturalWidth) / 2 : 0;
+        panY = img ? (canvasWrap.clientHeight - img.naturalHeight) / 2 : 0;
+        redraw();
+      }
+
+      document
+        .getElementById("btn-reset-view")
+        .addEventListener("click", resetView);
+
+      // ── Canvas click ───────────────────────────────────────────────────────────
+      canvasWrap.addEventListener("click", (e) => {
+        if (mode === "CONFIRMING") return;
+        if (isPanning) return;
+        const { sx, sy } = getLocalPos(e);
+        const idx = findNodeNear(sx, sy);
+
+        if (e.shiftKey) {
+          // Shift-click: toggle multi-selection
+          if (idx !== null) {
+            const node = nodes[idx];
+            if (multiSelection.has(node.id)) {
+              multiSelection.delete(node.id);
+            } else {
+              multiSelection.add(node.id);
+            }
+            renderNodeList();
+            redraw();
+          }
+          return;
+        }
+
+        // Normal click: clear multi-selection first
         if (multiSelection.size > 0) {
           multiSelection.clear();
           renderNodeList();
           redraw();
         }
-        if (mode === 'IDLE') {
-          nodeA = node;
-          mode  = 'SELECTING_B';
-          setHint(`"${nodeA.name || nodeA.id}" selected — now click the second node. (Esc to cancel)`);
+
+        if (idx === null) return;
+
+        if (mode === "IDLE") {
+          nodeA = nodes[idx];
+          mode = "SELECTING_B";
+          setHint(
+            `"${nodeA.name || nodeA.id}" selected — now click the second node. (Esc to cancel)`,
+          );
           renderNodeList();
           redraw();
-        } else if (mode === 'SELECTING_B') {
-          if (node.id === nodeA.id) return;
-          nodeB = node;
-          // auto-snap
+        } else if (mode === "SELECTING_B") {
+          if (nodes[idx].id === nodeA.id) return;
+          nodeB = nodes[idx];
+
+          // ── EDGE AUTO-SNAP ──
           if (isPlaced(nodeA) && isPlaced(nodeB)) {
             const [ax, ay] = nodeA.coords;
             const [bx, by] = nodeB.coords;
             const dx = Math.abs(bx - ax);
             const dy = Math.abs(by - ay);
-            let snapped = false, oldVal, newVal, axis;
+            let snapped = false;
+            let oldVal, newVal, axis;
             if (dy < dx) {
-              oldVal = by; newVal = roundQuarterFoot(ay); axis = 'Y';
-              nodeB.coords[1] = newVal; snapped = true;
+              // Snap Y: horizontal edge
+              oldVal = by;
+              newVal = roundQuarterFoot(ay);
+              axis = "Y";
+              nodeB.coords[1] = newVal;
+              snapped = true;
             } else if (dx < dy) {
-              oldVal = bx; newVal = roundQuarterFoot(ax); axis = 'X';
-              nodeB.coords[0] = newVal; snapped = true;
+              // Snap X: vertical edge
+              oldVal = bx;
+              newVal = roundQuarterFoot(ax);
+              axis = "X";
+              nodeB.coords[0] = newVal;
+              snapped = true;
             }
             if (snapped) {
               renderNodeList();
-              setStatus(`Snapped ${nodeB.id} ${axis} from ${oldVal} → ${newVal} for alignment.`);
+              setStatus(
+                `Snapped ${nodeB.id} ${axis} from ${oldVal} → ${newVal} for alignment.`,
+              );
             }
           }
+
           openConfirmDialog();
         }
       });
 
-      nodeListEl.appendChild(div);
-      shown++;
-    });
-    nodeCountEl.textContent = `(${shown}/${nodes.length})`;
-  }
+      // ── Keyboard ───────────────────────────────────────────────────────────────
+      document.addEventListener("keydown", (e) => {
+        if (
+          e.key === "Escape" &&
+          (mode === "SELECTING_B" || mode === "CONFIRMING")
+        )
+          resetMode();
+        if (e.key === "Enter" && mode === "CONFIRMING") confirmEdge();
+      });
 
-  function scrollToNode(index) {
-    if (!isPlaced(nodes[index])) return;
-    const pos = feetToScreen(nodes[index].coords[0], nodes[index].coords[1]);
-    panX = canvasWrap.clientWidth / 2 - pos.x + panX;
-    panY = canvasWrap.clientHeight / 2 - pos.y + panY;
-    redraw();
-  }
+      // ── Confirm dialog ─────────────────────────────────────────────────────────
+      function openConfirmDialog() {
+        mode = "CONFIRMING";
+        confirmLabel.textContent = `${nodeA.name || nodeA.id} ↔ ${nodeB.name || nodeB.id}`;
 
-  // ── renderEdgeList ─────────────────────────────────────────────────────────
-  function renderEdgeList() {
-    edgeListEl.innerHTML = '';
-    const seen = new Map();
-    edges.forEach(e => {
-      const [a, b] = [e.source, e.target].sort();
-      const k = `${a}|${b}`;
-      if (!seen.has(k)) seen.set(k, { srcId: e.source, tgtId: e.target, weight: e.weight });
-    });
+        if (isPlaced(nodeA) && isPlaced(nodeB)) {
+          const [ax, ay] = nodeA.coords;
+          const [bx, by] = nodeB.coords;
+          weightInput.value = Math.max(
+            1,
+            Math.round(Math.hypot(bx - ax, by - ay)),
+          );
+        } else {
+          weightInput.value = 10;
+        }
 
-    let count = 0;
-    seen.forEach(({ srcId, tgtId, weight }, pairKey) => {
-      if (activeFilter) {
-        const nA = nodesById[srcId], nB = nodesById[tgtId];
-        if (!nA || (nA.building || '').toLowerCase() !== activeFilter) return;
-        if (!nB || (nB.building || '').toLowerCase() !== activeFilter) return;
+        confirmDialog.style.display = "block";
+        weightInput.focus();
+        weightInput.select();
+        setHint("Confirm or cancel the new connection.");
       }
 
-      const nameA = (nodesById[srcId] || {}).name || srcId;
-      const nameB = (nodesById[tgtId] || {}).name || tgtId;
+      document
+        .getElementById("btn-confirm-edge")
+        .addEventListener("click", confirmEdge);
+      document
+        .getElementById("btn-cancel-edge")
+        .addEventListener("click", resetMode);
 
-      const div = document.createElement('div');
-      div.className = 'edge-item';
-
-      const labelSpan = document.createElement('span');
-      labelSpan.className = 'edge-label';
-      labelSpan.title = `${srcId} ↔ ${tgtId}`;
-      labelSpan.textContent = `${nameA} ↔ ${nameB}`;
-
-      const weightSpan = document.createElement('span');
-      weightSpan.className = 'edge-weight';
-      weightSpan.textContent = `${weight} ft`;
-
-      const delBtn = document.createElement('button');
-      delBtn.className = 'btn-del';
-      delBtn.textContent = '×';
-      delBtn.title = 'Delete this connection';
-      delBtn.addEventListener('click', (e) => { e.stopPropagation(); deleteEdgePair(srcId, tgtId); });
-
-      div.addEventListener('mouseenter', () => { hoveredEdgePair = pairKey; redraw(); });
-      div.addEventListener('mouseleave', () => { hoveredEdgePair = null;    redraw(); });
-
-      div.appendChild(labelSpan);
-      div.appendChild(weightSpan);
-      div.appendChild(delBtn);
-      edgeListEl.appendChild(div);
-      count++;
-    });
-
-    edgeCountEl.textContent = `(${count})`;
-  }
-
-  // ── redraw ─────────────────────────────────────────────────────────────────
-  function redraw() {
-    const W = canvasWrap.clientWidth;
-    const H = canvasWrap.clientHeight;
-    ctx.clearRect(0, 0, W, H);
-
-    // White background
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, W, H);
-
-    if (!floorMeta) {
-      ctx.fillStyle = '#888';
-      ctx.textAlign = 'center';
-      ctx.font = '14px sans-serif';
-      ctx.fillText('Load floors.json and set Building/Floor, then click Load.', W / 2, H / 2);
-      ctx.textAlign = 'left';
-      return;
-    }
-
-    // ── Image background via drawImage (unified zoom/pan) ──
-    if (img) {
-      const ix = imageToScreen(0, 0).x;
-      const iy = imageToScreen(0, 0).y;
-      const iw = img.naturalWidth * zoom;
-      const ih = img.naturalHeight * zoom;
-      ctx.drawImage(img, ix, iy, iw, ih);
-    }
-
-    // ── Grid lines every 10 ft (drawn using calibration or fallback) ──
-    const showFallbackGrid = !cal.hasOrigin || !cal.hasScale;
-    ctx.strokeStyle = showFallbackGrid ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.06)';
-    ctx.lineWidth = 1;
-
-    if (showFallbackGrid) {
-      // Light reference grid on white canvas when not calibrated
-      const hw = floorMeta.width_feet  / 2 + 10;
-      const hh = floorMeta.height_feet / 2 + 10;
-      for (let x = -Math.ceil(hw / 10) * 10; x <= hw; x += 10) {
-        const p = feetToScreen(x, 0);
-        ctx.beginPath(); ctx.moveTo(p.x, 0); ctx.lineTo(p.x, H); ctx.stroke();
-      }
-      for (let y = -Math.ceil(hh / 10) * 10; y <= hh; y += 10) {
-        const p = feetToScreen(0, y);
-        ctx.beginPath(); ctx.moveTo(0, p.y); ctx.lineTo(W, p.y); ctx.stroke();
-      }
-    } else {
-      // Calibration-based grid: grid lines in feet space mapped through full transform
-      // For simplicity, draw a sparse 50-ft grid in calibrated mode too
-      const hw = floorMeta.width_feet + 20;
-      const hh = floorMeta.height_feet + 20;
-      for (let x = -Math.ceil(hw / 10) * 10; x <= hw; x += 10) {
-        const p1 = feetToScreen(x, -hh);
-        const p2 = feetToScreen(x, hh);
-        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
-      }
-      for (let y = -Math.ceil(hh / 10) * 10; y <= hh; y += 10) {
-        const p1 = feetToScreen(-hw, y);
-        const p2 = feetToScreen(hw, y);
-        ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
-      }
-    }
-
-    // Floor bounding box (fallback only) or origin marker
-    if (!cal.hasOrigin || !cal.hasScale) {
-      const p1 = feetToScreen(-floorMeta.width_feet / 2,  floorMeta.height_feet / 2);
-      const p2 = feetToScreen( floorMeta.width_feet / 2, -floorMeta.height_feet / 2);
-      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
-      // Origin crosshair at canvas center (old behavior)
-      const o = feetToScreen(0, 0);
-      ctx.strokeStyle = '#e94560';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([4, 3]);
-      ctx.beginPath(); ctx.moveTo(o.x - 14, o.y); ctx.lineTo(o.x + 14, o.y); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(o.x, o.y - 14); ctx.lineTo(o.x, o.y + 14); ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle = '#e94560';
-      ctx.font = '11px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('origin (0, 0)', o.x, o.y - 18);
-    } else {
-      // Real origin marker from calibration
-      const o = feetToScreen(0, 0);
-      ctx.strokeStyle = '#e94560';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([4, 4]);
-      ctx.beginPath(); ctx.moveTo(o.x - 14, o.y); ctx.lineTo(o.x + 14, o.y); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(o.x, o.y - 14); ctx.lineTo(o.x, o.y + 14); ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle = '#e94560';
-      ctx.font = '11px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('Origin (0,0)', o.x, o.y - 18);
-    }
-    ctx.textAlign = 'left';
-
-    // ── Edges ──
-    edges.forEach(e => {
-      const nA = nodesById[e.source], nB = nodesById[e.target];
-      if (!nA || !nB || !nodeVisible(nA) || !nodeVisible(nB)) return;
-      if (!isPlaced(nA) || !isPlaced(nB)) return;
-      const a = feetToScreen(nA.coords[0], nA.coords[1]);
-      const b = feetToScreen(nB.coords[0], nB.coords[1]);
-      const canonKey = [e.source, e.target].sort().join('|');
-      if (canonKey === hoveredEdgePair) return;
-
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.strokeStyle = 'rgba(100, 180, 255, 0.55)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    });
-
-    // Hovered edge
-    if (hoveredEdgePair) {
-      const [idA, idB] = hoveredEdgePair.split('|');
-      const nA = nodesById[idA], nB = nodesById[idB];
-      if (nA && nB && isPlaced(nA) && isPlaced(nB)) {
-        const a = feetToScreen(nA.coords[0], nA.coords[1]);
-        const b = feetToScreen(nB.coords[0], nB.coords[1]);
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
-        ctx.strokeStyle = 'rgba(255, 200, 80, 0.9)';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-      }
-    }
-
-    // Ghost line from nodeA to cursor
-    if (mode === 'SELECTING_B' && nodeA && isPlaced(nodeA)) {
-      const a = feetToScreen(nodeA.coords[0], nodeA.coords[1]);
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(mousePos.sx, mousePos.sy);
-      ctx.strokeStyle = 'rgba(233, 69, 96, 0.65)';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([6, 4]);
-      ctx.stroke();
-      ctx.setLineDash([]);
-    }
-
-    // ── Nodes ──
-    nodes.forEach((node, i) => {
-      if (!nodeVisible(node) || !isPlaced(node)) return;
-      const s = feetToScreen(node.coords[0], node.coords[1]);
-      const isNodeA   = nodeA && node.id === nodeA.id;
-      const isHovered = i === hoverNodeIndex;
-      const isMulti   = multiSelection.has(node.id);
-
-      let fill   = nodeColor(node);
-      let radius = 7;
-      if (isNodeA)        { fill = '#e94560'; radius = 10; }
-      else if (isHovered) { fill = '#ffe066'; radius = 9; }
-
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = fill;
-      ctx.fill();
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      if (isMulti) {
-        ctx.beginPath();
-        ctx.arc(s.x, s.y, radius + 4, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(233, 69, 96, 0.85)';
-        ctx.lineWidth = 2.5;
-        ctx.setLineDash([3, 2]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
-      const label = node.name || node.id;
-      ctx.font = `${isNodeA ? 'bold ' : ''}12px sans-serif`;
-      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-      ctx.lineWidth = 3;
-      ctx.strokeText(label, s.x + 12, s.y + 4);
-      ctx.fillStyle = '#222';
-      ctx.fillText(label, s.x + 12, s.y + 4);
-    });
-  }
-
-  // ── Coordinate helpers ─────────────────────────────────────────────────────
-  function findNodeNear(sx, sy) {
-    const HIT = 14;   // screen pixels
-    for (let i = nodes.length - 1; i >= 0; i--) {
-      if (!nodeVisible(nodes[i]) || !isPlaced(nodes[i])) continue;
-      const s = feetToScreen(nodes[i].coords[0], nodes[i].coords[1]);
-      if (Math.hypot(sx - s.x, sy - s.y) <= HIT) return i;
-    }
-    return null;
-  }
-
-  // ── Save ──────────────────────────────────────────────────────────────────
-  async function writeJSON(filename, data) {
-    const json = JSON.stringify(data, null, 2);
-    if (window.showSaveFilePicker) {
-      try {
-        const handle = await window.showSaveFilePicker({
-          suggestedName: filename,
-          types: [{ description: 'JSON file', accept: { 'application/json': ['.json'] } }],
+      function confirmEdge() {
+        const w = Math.max(1, parseInt(weightInput.value, 10) || 10);
+        const key = `${nodeA.id}|${nodeB.id}`;
+        if (edgeSet.has(key)) {
+          setStatus("Edge already exists — skipped.");
+          resetMode();
+          return;
+        }
+        edges.push({
+          source: nodeA.id,
+          target: nodeB.id,
+          weight: w,
+          instruction: makeInstruction(nodeA, nodeB),
         });
-        const writable = await handle.createWritable();
-        await writable.write(json);
-        await writable.close();
-        setStatus(`Saved to ${handle.name} (${data.length} items).`);
-      } catch (err) {
-        if (err.name !== 'AbortError') setStatus('Save failed: ' + err.message);
+        edges.push({
+          source: nodeB.id,
+          target: nodeA.id,
+          weight: w,
+          instruction: makeInstruction(nodeB, nodeA),
+        });
+        edgeSet.add(`${nodeA.id}|${nodeB.id}`);
+        edgeSet.add(`${nodeB.id}|${nodeA.id}`);
+        setStatus(
+          `Added: ${nodeA.name || nodeA.id} ↔ ${nodeB.name || nodeB.id} (w=${w})`,
+        );
+        renderEdgeList();
+        redraw();
+        resetMode();
       }
-    } else {
-      const blob = new Blob([json], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      a.click();
-      setStatus(`${filename} downloaded (${data.length} items).`);
-    }
-  }
 
-  btnSaveEdges.addEventListener('click', () => writeJSON('edges.json', edges));
-  btnSaveNodes.addEventListener('click', () => writeJSON('nodes.json', nodes));
+      function resetMode() {
+        mode = "IDLE";
+        nodeA = null;
+        nodeB = null;
+        confirmDialog.style.display = "none";
+        setHint("Select a node to start an edge.");
+        renderNodeList();
+        redraw();
+      }
 
-  // ── UI helpers ─────────────────────────────────────────────────────────────
-  function setStatus(msg) { statusEl.textContent = msg; }
-  function setHint(msg)   { hintBar.textContent = msg; hintBar.style.display = 'block'; }
+      // ── makeInstruction ────────────────────────────────────────────────────────
+      function makeInstruction(fromNode, toNode) {
+        const fromName = fromNode.name || fromNode.id;
+        const toName = toNode.name || toNode.id;
+        if (fromNode.type === "room")
+          return `Exit room ${fromName} and continue.`;
+        if (toNode.type === "room") return `Enter room ${toName}.`;
+        return `Continue toward ${toName}.`;
+      }
 
-  resizeCanvas();
-</script>
-</body>
+      // ── Edge set helpers ───────────────────────────────────────────────────────
+      function rebuildEdgeSet() {
+        edgeSet = new Set(edges.map((e) => `${e.source}|${e.target}`));
+      }
+
+      function uniquePairCount() {
+        const seen = new Set();
+        edges.forEach((e) => {
+          seen.add([e.source, e.target].sort().join("|"));
+        });
+        return seen.size;
+      }
+
+      function deleteEdgePair(srcId, tgtId) {
+        edges = edges.filter(
+          (e) =>
+            !(
+              (e.source === srcId && e.target === tgtId) ||
+              (e.source === tgtId && e.target === srcId)
+            ),
+        );
+        edgeSet.delete(`${srcId}|${tgtId}`);
+        edgeSet.delete(`${tgtId}|${srcId}`);
+        renderEdgeList();
+        redraw();
+        setStatus(`Deleted: ${srcId} ↔ ${tgtId}`);
+      }
+
+      // ── Multi-node straighten ──────────────────────────────────────────────────
+      btnStraighten.addEventListener("click", () => {
+        if (multiSelection.size < 2) return;
+        const selected = nodes.filter(
+          (n) => multiSelection.has(n.id) && isPlaced(n),
+        );
+        if (selected.length < 2) return;
+
+        const xs = selected.map((n) => n.coords[0]);
+        const ys = selected.map((n) => n.coords[1]);
+        const xRange = Math.max(...xs) - Math.min(...xs);
+        const yRange = Math.max(...ys) - Math.min(...ys);
+
+        let snapAxis, snapValue;
+        if (yRange > xRange) {
+          // Vertically oriented: snap X to average X
+          snapAxis = "X";
+          snapValue = roundQuarterFoot(
+            xs.reduce((a, b) => a + b, 0) / xs.length,
+          );
+          selected.forEach((n) => (n.coords[0] = snapValue));
+        } else {
+          // Horizontally oriented (or equal): snap Y to average Y
+          snapAxis = "Y";
+          snapValue = roundQuarterFoot(
+            ys.reduce((a, b) => a + b, 0) / ys.length,
+          );
+          selected.forEach((n) => (n.coords[1] = snapValue));
+        }
+
+        setStatus(
+          `Straightened ${selected.length} nodes, snapped ${snapAxis} to ${snapValue}.`,
+        );
+        renderNodeList();
+        redraw();
+      });
+
+      // ── Filter helpers ───────────────────────────────────────────────────────
+      function nodeVisible(node) {
+        if (
+          activeFilter &&
+          (node.building || "").toLowerCase() !== activeFilter
+        )
+          return false;
+        if (!isNaN(activeFloor) && node.floor !== activeFloor) return false;
+        return true;
+      }
+
+      // ── renderNodeList ─────────────────────────────────────────────────────────
+      function renderNodeList() {
+        nodeListEl.innerHTML = "";
+        let shown = 0;
+        btnStraighten.disabled = multiSelection.size < 2;
+        nodes.forEach((node, i) => {
+          if (!nodeVisible(node)) return;
+          const div = document.createElement("div");
+          const isSel = nodeA && node.id === nodeA.id;
+          const isMulti = multiSelection.has(node.id);
+          div.className =
+            "node-item" +
+            (isSel ? " selected" : "") +
+            (isMulti ? " multi-selected" : "");
+          if (!isPlaced(node)) div.classList.add("unplaced");
+
+          const dot = document.createElement("span");
+          dot.className = "type-dot";
+          dot.style.background = isSel ? "#fff" : nodeColor(node);
+
+          const label = document.createElement("span");
+          label.className = "node-label";
+          label.title = node.id;
+          label.textContent = node.name || node.id;
+
+          const coordsSpan = document.createElement("span");
+          coordsSpan.className = "node-coords";
+          coordsSpan.textContent = isPlaced(node)
+            ? `[${node.coords[0]}, ${node.coords[1]}]`
+            : "";
+
+          div.appendChild(dot);
+          div.appendChild(label);
+          div.appendChild(coordsSpan);
+
+          if (!isPlaced(node)) {
+            const tag = document.createElement("span");
+            tag.className = "unplaced-tag";
+            tag.textContent = "?";
+            tag.title =
+              "No coordinates — place this node in coord_picker.html first";
+            div.appendChild(tag);
+          }
+
+          div.addEventListener("click", (e) => {
+            if (mode === "CONFIRMING") return;
+            if (e.shiftKey) {
+              if (multiSelection.has(node.id)) {
+                multiSelection.delete(node.id);
+              } else {
+                multiSelection.add(node.id);
+              }
+              renderNodeList();
+              redraw();
+              return;
+            }
+            // normal click
+            if (multiSelection.size > 0) {
+              multiSelection.clear();
+              renderNodeList();
+              redraw();
+            }
+            if (mode === "IDLE") {
+              nodeA = node;
+              mode = "SELECTING_B";
+              setHint(
+                `"${nodeA.name || nodeA.id}" selected — now click the second node. (Esc to cancel)`,
+              );
+              renderNodeList();
+              redraw();
+            } else if (mode === "SELECTING_B") {
+              if (node.id === nodeA.id) return;
+              nodeB = node;
+              // auto-snap
+              if (isPlaced(nodeA) && isPlaced(nodeB)) {
+                const [ax, ay] = nodeA.coords;
+                const [bx, by] = nodeB.coords;
+                const dx = Math.abs(bx - ax);
+                const dy = Math.abs(by - ay);
+                let snapped = false,
+                  oldVal,
+                  newVal,
+                  axis;
+                if (dy < dx) {
+                  oldVal = by;
+                  newVal = roundQuarterFoot(ay);
+                  axis = "Y";
+                  nodeB.coords[1] = newVal;
+                  snapped = true;
+                } else if (dx < dy) {
+                  oldVal = bx;
+                  newVal = roundQuarterFoot(ax);
+                  axis = "X";
+                  nodeB.coords[0] = newVal;
+                  snapped = true;
+                }
+                if (snapped) {
+                  renderNodeList();
+                  setStatus(
+                    `Snapped ${nodeB.id} ${axis} from ${oldVal} → ${newVal} for alignment.`,
+                  );
+                }
+              }
+              openConfirmDialog();
+            }
+          });
+
+          nodeListEl.appendChild(div);
+          shown++;
+        });
+        nodeCountEl.textContent = `(${shown}/${nodes.length})`;
+      }
+
+      function scrollToNode(index) {
+        if (!isPlaced(nodes[index])) return;
+        const pos = feetToScreen(
+          nodes[index].coords[0],
+          nodes[index].coords[1],
+        );
+        panX = canvasWrap.clientWidth / 2 - pos.x + panX;
+        panY = canvasWrap.clientHeight / 2 - pos.y + panY;
+        redraw();
+      }
+
+      // ── renderEdgeList ─────────────────────────────────────────────────────────
+      function renderEdgeList() {
+        edgeListEl.innerHTML = "";
+        const seen = new Map();
+        edges.forEach((e) => {
+          const [a, b] = [e.source, e.target].sort();
+          const k = `${a}|${b}`;
+          if (!seen.has(k))
+            seen.set(k, { srcId: e.source, tgtId: e.target, weight: e.weight });
+        });
+
+        let count = 0;
+        seen.forEach(({ srcId, tgtId, weight }, pairKey) => {
+          if (activeFilter) {
+            const nA = nodesById[srcId],
+              nB = nodesById[tgtId];
+            if (!nA || (nA.building || "").toLowerCase() !== activeFilter)
+              return;
+            if (!nB || (nB.building || "").toLowerCase() !== activeFilter)
+              return;
+          }
+
+          const nameA = (nodesById[srcId] || {}).name || srcId;
+          const nameB = (nodesById[tgtId] || {}).name || tgtId;
+
+          const div = document.createElement("div");
+          div.className = "edge-item";
+
+          const labelSpan = document.createElement("span");
+          labelSpan.className = "edge-label";
+          labelSpan.title = `${srcId} ↔ ${tgtId}`;
+          labelSpan.textContent = `${nameA} ↔ ${nameB}`;
+
+          const weightSpan = document.createElement("span");
+          weightSpan.className = "edge-weight";
+          weightSpan.textContent = `${weight} ft`;
+
+          const delBtn = document.createElement("button");
+          delBtn.className = "btn-del";
+          delBtn.textContent = "×";
+          delBtn.title = "Delete this connection";
+          delBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            deleteEdgePair(srcId, tgtId);
+          });
+
+          div.addEventListener("mouseenter", () => {
+            hoveredEdgePair = pairKey;
+            redraw();
+          });
+          div.addEventListener("mouseleave", () => {
+            hoveredEdgePair = null;
+            redraw();
+          });
+
+          div.appendChild(labelSpan);
+          div.appendChild(weightSpan);
+          div.appendChild(delBtn);
+          edgeListEl.appendChild(div);
+          count++;
+        });
+
+        edgeCountEl.textContent = `(${count})`;
+      }
+
+      // ── redraw ─────────────────────────────────────────────────────────────────
+      function redraw() {
+        const W = canvasWrap.clientWidth;
+        const H = canvasWrap.clientHeight;
+        ctx.clearRect(0, 0, W, H);
+
+        // White background
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, W, H);
+
+        if (!floorMeta) {
+          ctx.fillStyle = "#888";
+          ctx.textAlign = "center";
+          ctx.font = "14px sans-serif";
+          ctx.fillText(
+            "Load floors.json and set Building/Floor, then click Load.",
+            W / 2,
+            H / 2,
+          );
+          ctx.textAlign = "left";
+          return;
+        }
+
+        // ── Image background via drawImage (unified zoom/pan) ──
+        if (img) {
+          const ix = imageToScreen(0, 0).x;
+          const iy = imageToScreen(0, 0).y;
+          const iw = img.naturalWidth * zoom;
+          const ih = img.naturalHeight * zoom;
+          ctx.drawImage(img, ix, iy, iw, ih);
+        }
+
+        // ── Grid lines every 10 ft (drawn using calibration or fallback) ──
+        const showFallbackGrid = !cal.hasOrigin || !cal.hasScale;
+        ctx.strokeStyle = showFallbackGrid
+          ? "rgba(0,0,0,0.06)"
+          : "rgba(0,0,0,0.06)";
+        ctx.lineWidth = 1;
+
+        if (showFallbackGrid) {
+          // Light reference grid on white canvas when not calibrated
+          const hw = floorMeta.width_feet / 2 + 10;
+          const hh = floorMeta.height_feet / 2 + 10;
+          for (let x = -Math.ceil(hw / 10) * 10; x <= hw; x += 10) {
+            const p = feetToScreen(x, 0);
+            ctx.beginPath();
+            ctx.moveTo(p.x, 0);
+            ctx.lineTo(p.x, H);
+            ctx.stroke();
+          }
+          for (let y = -Math.ceil(hh / 10) * 10; y <= hh; y += 10) {
+            const p = feetToScreen(0, y);
+            ctx.beginPath();
+            ctx.moveTo(0, p.y);
+            ctx.lineTo(W, p.y);
+            ctx.stroke();
+          }
+        } else {
+          // Calibration-based grid: grid lines in feet space mapped through full transform
+          // For simplicity, draw a sparse 50-ft grid in calibrated mode too
+          const hw = floorMeta.width_feet + 20;
+          const hh = floorMeta.height_feet + 20;
+          for (let x = -Math.ceil(hw / 10) * 10; x <= hw; x += 10) {
+            const p1 = feetToScreen(x, -hh);
+            const p2 = feetToScreen(x, hh);
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+          }
+          for (let y = -Math.ceil(hh / 10) * 10; y <= hh; y += 10) {
+            const p1 = feetToScreen(-hw, y);
+            const p2 = feetToScreen(hw, y);
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+          }
+        }
+
+        // Floor bounding box (fallback only) or origin marker
+        if (!cal.hasOrigin || !cal.hasScale) {
+          const p1 = feetToScreen(
+            -floorMeta.width_feet / 2,
+            floorMeta.height_feet / 2,
+          );
+          const p2 = feetToScreen(
+            floorMeta.width_feet / 2,
+            -floorMeta.height_feet / 2,
+          );
+          ctx.strokeStyle = "rgba(0,0,0,0.15)";
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(p1.x, p1.y, p2.x - p1.x, p2.y - p1.y);
+          // Origin crosshair at canvas center (old behavior)
+          const o = feetToScreen(0, 0);
+          ctx.strokeStyle = "#e94560";
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([4, 3]);
+          ctx.beginPath();
+          ctx.moveTo(o.x - 14, o.y);
+          ctx.lineTo(o.x + 14, o.y);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(o.x, o.y - 14);
+          ctx.lineTo(o.x, o.y + 14);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = "#e94560";
+          ctx.font = "11px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText("origin (0, 0)", o.x, o.y - 18);
+        } else {
+          // Real origin marker from calibration
+          const o = feetToScreen(0, 0);
+          ctx.strokeStyle = "#e94560";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([4, 4]);
+          ctx.beginPath();
+          ctx.moveTo(o.x - 14, o.y);
+          ctx.lineTo(o.x + 14, o.y);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(o.x, o.y - 14);
+          ctx.lineTo(o.x, o.y + 14);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = "#e94560";
+          ctx.font = "11px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText("Origin (0,0)", o.x, o.y - 18);
+        }
+        ctx.textAlign = "left";
+
+        // ── Edges ──
+        edges.forEach((e) => {
+          const nA = nodesById[e.source],
+            nB = nodesById[e.target];
+          if (!nA || !nB || !nodeVisible(nA) || !nodeVisible(nB)) return;
+          if (!isPlaced(nA) || !isPlaced(nB)) return;
+          const a = feetToScreen(nA.coords[0], nA.coords[1]);
+          const b = feetToScreen(nB.coords[0], nB.coords[1]);
+          const canonKey = [e.source, e.target].sort().join("|");
+          if (canonKey === hoveredEdgePair) return;
+
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(b.x, b.y);
+          ctx.strokeStyle = "rgba(100, 180, 255, 0.55)";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        });
+
+        // Hovered edge
+        if (hoveredEdgePair) {
+          const [idA, idB] = hoveredEdgePair.split("|");
+          const nA = nodesById[idA],
+            nB = nodesById[idB];
+          if (nA && nB && isPlaced(nA) && isPlaced(nB)) {
+            const a = feetToScreen(nA.coords[0], nA.coords[1]);
+            const b = feetToScreen(nB.coords[0], nB.coords[1]);
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.strokeStyle = "rgba(255, 200, 80, 0.9)";
+            ctx.lineWidth = 3;
+            ctx.stroke();
+          }
+        }
+
+        // Ghost line from nodeA to cursor
+        if (mode === "SELECTING_B" && nodeA && isPlaced(nodeA)) {
+          const a = feetToScreen(nodeA.coords[0], nodeA.coords[1]);
+          ctx.beginPath();
+          ctx.moveTo(a.x, a.y);
+          ctx.lineTo(mousePos.sx, mousePos.sy);
+          ctx.strokeStyle = "rgba(233, 69, 96, 0.65)";
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([6, 4]);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+
+        // ── Nodes ──
+        nodes.forEach((node, i) => {
+          if (!nodeVisible(node) || !isPlaced(node)) return;
+          const s = feetToScreen(node.coords[0], node.coords[1]);
+          const isNodeA = nodeA && node.id === nodeA.id;
+          const isHovered = i === hoverNodeIndex;
+          const isMulti = multiSelection.has(node.id);
+
+          let fill = nodeColor(node);
+          let radius = 7;
+          if (isNodeA) {
+            fill = "#e94560";
+            radius = 10;
+          } else if (isHovered) {
+            fill = "#ffe066";
+            radius = 9;
+          }
+
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, radius, 0, Math.PI * 2);
+          ctx.fillStyle = fill;
+          ctx.fill();
+          ctx.strokeStyle = "#fff";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          if (isMulti) {
+            ctx.beginPath();
+            ctx.arc(s.x, s.y, radius + 4, 0, Math.PI * 2);
+            ctx.strokeStyle = "rgba(233, 69, 96, 0.85)";
+            ctx.lineWidth = 2.5;
+            ctx.setLineDash([3, 2]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+
+          const label = node.name || node.id;
+          ctx.font = `${isNodeA ? "bold " : ""}12px sans-serif`;
+          ctx.strokeStyle = "rgba(255,255,255,0.9)";
+          ctx.lineWidth = 3;
+          ctx.strokeText(label, s.x + 12, s.y + 4);
+          ctx.fillStyle = "#222";
+          ctx.fillText(label, s.x + 12, s.y + 4);
+        });
+      }
+
+      // ── Coordinate helpers ─────────────────────────────────────────────────────
+      function findNodeNear(sx, sy) {
+        const HIT = 14; // screen pixels
+        for (let i = nodes.length - 1; i >= 0; i--) {
+          if (!nodeVisible(nodes[i]) || !isPlaced(nodes[i])) continue;
+          const s = feetToScreen(nodes[i].coords[0], nodes[i].coords[1]);
+          if (Math.hypot(sx - s.x, sy - s.y) <= HIT) return i;
+        }
+        return null;
+      }
+
+      // ── Save ──────────────────────────────────────────────────────────────────
+      async function writeJSON(filename, data) {
+        const json = JSON.stringify(data, null, 2);
+        if (window.showSaveFilePicker) {
+          try {
+            const handle = await window.showSaveFilePicker({
+              suggestedName: filename,
+              types: [
+                {
+                  description: "JSON file",
+                  accept: { "application/json": [".json"] },
+                },
+              ],
+            });
+            const writable = await handle.createWritable();
+            await writable.write(json);
+            await writable.close();
+            setStatus(`Saved to ${handle.name} (${data.length} items).`);
+          } catch (err) {
+            if (err.name !== "AbortError")
+              setStatus("Save failed: " + err.message);
+          }
+        } else {
+          const blob = new Blob([json], { type: "application/json" });
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = filename;
+          a.click();
+          setStatus(`${filename} downloaded (${data.length} items).`);
+        }
+      }
+
+      btnSaveEdges.addEventListener("click", () =>
+        writeJSON("edges.json", edges),
+      );
+      btnSaveNodes.addEventListener("click", () =>
+        writeJSON("nodes.json", nodes),
+      );
+
+      // ── UI helpers ─────────────────────────────────────────────────────────────
+      function setStatus(msg) {
+        statusEl.textContent = msg;
+      }
+      function setHint(msg) {
+        hintBar.textContent = msg;
+        hintBar.style.display = "block";
+      }
+
+      resizeCanvas();
+    </script>
+  </body>
 </html>
