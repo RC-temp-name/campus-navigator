@@ -23,6 +23,9 @@ jobs:
         with:
           enable-cache: true
 
+      - name: "Install python"
+        run: uv python install
+
         # installs exactly the committed uv.lock and errors if it's out
         # of date with pyproject.toml.
       - name: "Install dependencies"
