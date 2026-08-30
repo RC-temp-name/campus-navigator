@@ -72,7 +72,8 @@ validate-data:
 # Verify the development compose file without starting containers
 docker-config:
     docker compose config
+    docker compose -f docker-compose.prod.yml config
 
 # Run tests with coverage report
 coverage:
-    uv run pytest --cov=app --cov-report=term-missing --cov-report=html
+    uv run pytest --cov=app --cov=tools --cov-report=term-missing --cov-report=html

@@ -51,6 +51,15 @@ function createEventTarget() {
   };
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 class FakeElement {
   constructor(ownerDocument, tagName) {
     this.ownerDocument = ownerDocument;
@@ -86,7 +95,8 @@ class FakeElement {
     ]
       .filter(Boolean)
       .join("");
-    return `<${this.tagName.toLowerCase()}${attributes}>${this.innerHTML}</${this.tagName.toLowerCase()}>`;
+    const content = this._innerHTML || escapeHtml(this._textContent);
+    return `<${this.tagName.toLowerCase()}${attributes}>${content}</${this.tagName.toLowerCase()}>`;
   }
 
   set innerHTML(value) {
@@ -94,7 +104,6 @@ class FakeElement {
     this._innerHTML = String(value);
     this._textContent = "";
 
-    // The production directions script creates its button through innerHTML.
     // This deliberately small parser gives every opening tag a fake node and
     // preserves ids/classes needed by tests without pretending to be a browser.
     const openingTags = /<([a-z][\w-]*)\b([^>]*)>/gi;
@@ -132,11 +141,9 @@ class FakeElement {
     child.parentNode = this;
     this.children.push(child);
     this.ownerDocument.registerTree(child);
-    if (!this._innerHTML) {
-      this._innerHTML = this.children
-        .map((element) => element.outerHTML)
-        .join("");
-    }
+    this._innerHTML = this.children
+      .map((element) => element.outerHTML)
+      .join("");
     return child;
   }
 
@@ -156,6 +163,11 @@ class FakeElement {
     for (const child of [...this.children]) {
       this.removeChild(child);
     }
+  }
+
+  replaceChildren(...children) {
+    this.clearChildren();
+    for (const child of children) this.appendChild(child);
   }
 
   addEventListener(type, listener) {

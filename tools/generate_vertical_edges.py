@@ -38,31 +38,40 @@ def save_json(path, data):
 
 def discover_connectors(nodes):
     """
-    Scan nodes for known connector suffixes and return a dict of:
-        suffix -> {"type": "elevator"|"staircase", "floors": [...], "name": str}
+    Scan nodes for known connector suffixes and return a dict keyed by
+    ``(building, suffix)``. Keeping the building in the key prevents two
+    buildings with an ``E1`` or ``S1`` connector from being merged.
     """
     found = {}
     for node in nodes:
         node_id = node["id"]
-        parts = node_id.split(
-            "_", 2
-        )  # e.g. ["NPB", "5", "E1"] or ["NPB", "4", "stairs_main"]
+        parts = node_id.split("_", 2)
         if len(parts) < 3:
             continue
-        suffix = parts[2]
+
+        embedded_building, _, suffix = parts
         if suffix not in CONNECTORS:
             continue
-        floor = node["floor"]
-        if suffix not in found:
-            found[suffix] = {
+
+        building = node.get("building", embedded_building)
+        if building != embedded_building:
+            raise ValueError(
+                f"Node '{node_id}' has building '{building}', but its ID uses "
+                f"'{embedded_building}'"
+            )
+
+        key = (building, suffix)
+        if key not in found:
+            found[key] = {
                 "type": "elevator" if suffix in ELEVATORS else "staircase",
-                "floors": [],
+                "floors": set(),
                 "name": node["name"],
-                "building": node.get("building", "NPB"),
+                "building": building,
             }
-        found[suffix]["floors"].append(floor)
-    for suffix in found:
-        found[suffix]["floors"].sort()
+        found[key]["floors"].add(node["floor"])
+
+    for info in found.values():
+        info["floors"] = sorted(info["floors"])
     return found
 
 
@@ -77,9 +86,15 @@ def make_edge(source_id, target_id, weight, instruction):
 
 def generate_edges(connectors):
     new_edges = []
-    for suffix, info in connectors.items():
-        floors = info["floors"]
-        building = info["building"]
+    for key, info in connectors.items():
+        if isinstance(key, tuple):
+            building, suffix = key
+        else:
+            # Accept the old suffix-only shape for callers that construct
+            # connector metadata directly.
+            suffix = key
+            building = info["building"]
+        floors = sorted(set(info["floors"]))
         node_type = info["type"]
 
         if node_type == "elevator":
@@ -87,7 +102,7 @@ def generate_edges(connectors):
         else:
             pairs = [
                 (floor_a, floor_b)
-                for floor_a, floor_b in itertools.pairwise(floors, floors[1:])
+                for floor_a, floor_b in itertools.pairwise(floors)
                 if floor_b == floor_a + 1
             ]
 

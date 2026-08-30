@@ -29,7 +29,7 @@
                     </select>
                     <br>
                     <br>
-                    <button type="/directions">Get Directions</button>
+                    <button type="submit">Get Directions</button>
                     <div style="height: 30px;"></div>
                     <div class="radio-group">
                         <strong>Route:</strong>
@@ -61,7 +61,15 @@
                     {% endif %}
                 </div>
                 <div class="right-panel">
-                    {% if coordinates %}
+                    {% if map_error %}
+                        <div id="map"
+                             style="background: #f4f5f7;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center">
+                            <p style="color: #999;">{{ map_error }}</p>
+                        </div>
+                    {% elif coordinates %}
                         <div id="map"></div>
                         <script>
             window.routeCoordinates = {{ coordinates | tojson }};

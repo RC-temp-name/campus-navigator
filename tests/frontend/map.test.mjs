@@ -59,6 +59,52 @@ test("map template wires data globals before loading the browser scripts", () =>
   assert.ok(mapDataIndex < mapScriptIndex);
 });
 
+test("map stops when Leaflet is missing", () => {
+  const harness = loadMapScript({
+    routeCoordinates: [{ x: 2, y: 3, floor: 1 }],
+    floorBounds: { width: 30, height: 20 },
+    globals: { L: undefined },
+  });
+
+  assert.equal(harness.maps.length, 0);
+  assert.deepEqual(harness.consoleMessages.error, [
+    ["Leaflet is missing from the page"],
+  ]);
+});
+
+test("map declines to draw a route that crosses floors", () => {
+  const harness = loadMapScript({
+    routeCoordinates: [
+      { x: 2, y: 3, floor: 1 },
+      { x: 4, y: 5, floor: 2 },
+    ],
+    floorBounds: { width: 30, height: 20 },
+  });
+
+  assert.equal(harness.maps.length, 0);
+  assert.deepEqual(harness.consoleMessages.error, [
+    ["Map preview only supports routes on one floor"],
+  ]);
+});
+
+test("map creates the bounded map without a route for empty coordinates", () => {
+  const harness = loadMapScript({
+    routeCoordinates: [],
+    floorBounds: { width: 30, height: 20 },
+  });
+
+  assert.equal(harness.maps.length, 1);
+  assert.equal(
+    harness.layers.filter((layer) => layer.type === "polyline").length,
+    7,
+  );
+  assert.equal(
+    harness.layers.filter((layer) => layer.type === "circleMarker").length,
+    0,
+  );
+  assert.equal(harness.maps[0].fitBoundsCalls.length, 1);
+});
+
 test("map uses Simple CRS, configured zoom options, and floor bounds", () => {
   const harness = loadMapScript({
     routeCoordinates: [

@@ -33,6 +33,21 @@ test("directions renders the first step and its ordinary instruction text", () =
   assert.match(harness.directionsContainer.innerHTML, /Leave the lobby/);
 });
 
+test("directions renders instruction text without interpreting HTML", () => {
+  const instruction = '<img src=x onerror="alert(1)"> Turn left';
+  const harness = loadDirectionsScript({ directionSteps: [instruction] });
+  const paragraph = harness.directionsContainer.children[0].children[1];
+
+  assert.equal(paragraph.textContent, instruction);
+  assert.equal(paragraph.innerHTML, "");
+  assert.equal(
+    harness.getCreatedElements().filter((element) => element.tagName === "IMG")
+      .length,
+    0,
+  );
+  assert.doesNotMatch(harness.directionsContainer.innerHTML, /<img/);
+});
+
 test("directions advances through steps in order and then shows arrived", () => {
   const harness = loadDirectionsScript({
     directionSteps: [

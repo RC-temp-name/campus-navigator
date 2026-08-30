@@ -37,6 +37,14 @@ def test_save_json_creates_parent_and_round_trips_data(tmp_path):
     assert json.loads(path.read_text(encoding="utf-8")) == expected
 
 
+def test_default_paths_point_to_repository_data_directory():
+    repo_root = data_entry.BASE_DIR.parents[1]
+
+    assert data_entry.DATA_DIR == repo_root / "data"
+    assert data_entry.NODES_FILE == repo_root / "data" / "nodes.json"
+    assert data_entry.EDGES_FILE == repo_root / "data" / "edges.json"
+
+
 def test_add_node_rejects_duplicate_without_prompting_for_details(
     monkeypatch, tmp_path, capsys
 ):
@@ -64,6 +72,7 @@ def test_add_node_saves_normalized_values(monkeypatch, tmp_path):
             "id": "room",
             "name": "Room 101",
             "type": "room",
+            "building": "NPB",
             "coords": [12.5, -3.0],
             "floor": 4,
         }

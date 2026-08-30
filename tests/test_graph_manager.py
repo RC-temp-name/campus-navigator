@@ -266,6 +266,27 @@ def test_get_directions_describes_floor_changes(current_type, next_type, expecte
     assert [coordinate["floor"] for coordinate in result["coordinates"]] == [1, 2]
 
 
+def test_get_directions_preserves_generated_elevator_instruction_between_connectors():
+    manager.G = make_graph(
+        ("NPB_5_E1", node(floor=5, node_type="elevator")),
+        ("NPB_4_E1", node(floor=4, node_type="elevator")),
+        edges=[
+            (
+                "NPB_5_E1",
+                "NPB_4_E1",
+                {
+                    "weight": 20,
+                    "instruction": "Take elevator E1 to floor 4.",
+                },
+            )
+        ],
+    )
+
+    result = manager.get_directions("NPB_5_E1", "NPB_4_E1")
+
+    assert result["directions"] == ["Take elevator E1 to floor 4."]
+
+
 def test_get_directions_returns_message_when_no_path_exists():
     manager.G = make_graph(("start", node()), ("end", node()))
 
@@ -340,9 +361,7 @@ def test_main_draws_positioned_subgraph_and_saves_preview(monkeypatch):
     graph = make_graph(
         ("positioned", node(x=10, y=20)),
         ("unpositioned", node(x=None, y=30)),
-        edges=[
-            ("positioned", "unpositioned", {"weight": 1, "instruction": "Go."})
-        ],
+        edges=[("positioned", "unpositioned", {"weight": 1, "instruction": "Go."})],
     )
     drawn = []
     saved = []

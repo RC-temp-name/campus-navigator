@@ -1,12 +1,31 @@
 document.addEventListener("DOMContentLoaded", () => {
-  if (!window.routeCoordinates || !window.floorBounds) {
+  const { routeCoordinates, floorBounds } = window;
+  if (!routeCoordinates || !floorBounds) {
     console.error("routeCoordinates or floorBounds missing from template");
+    return;
+  }
+  if (!window.L) {
+    console.error("Leaflet is missing from the page");
+    return;
+  }
+  if (!Array.isArray(routeCoordinates)) {
+    console.error("routeCoordinates must be an array");
+    return;
+  }
+
+  const floors = new Set(
+    routeCoordinates
+      .map((coordinate) => coordinate.floor)
+      .filter((floor) => floor !== undefined),
+  );
+  if (floors.size > 1) {
+    console.error("Map preview only supports routes on one floor");
     return;
   }
 
   // Initialize map with simple CRS
-  const map = L.map("map", {
-    crs: L.CRS.Simple,
+  const map = window.L.map("map", {
+    crs: window.L.CRS.Simple,
     minZoom: -2,
     maxZoom: 4,
     zoomControl: true,
@@ -26,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Vertical lines
     for (let x = 0; x <= floorBounds.width; x += gridSize) {
-      L.polyline(
+      window.L.polyline(
         [
           [0, x],
           [floorBounds.height, x],
@@ -41,7 +60,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Horizontal lines
     for (let y = 0; y <= floorBounds.height; y += gridSize) {
-      L.polyline(
+      window.L.polyline(
         [
           [y, 0],
           [y, floorBounds.width],
@@ -60,21 +79,20 @@ document.addEventListener("DOMContentLoaded", () => {
   // Convert backend coordinates → Leaflet [lat, lng]
   const latlngs = routeCoordinates.map((c) => [c.y, c.x]);
 
-  // Draw animated route line
-  const routeLine = L.polyline(latlngs, {
-    color: "blue",
-    weight: 4,
-    dashArray: "10, 10",
-    className: "animated-route",
-  }).addTo(map);
-
-  // Fit map to route
-  map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
-
-  // Start + end markers
   if (latlngs.length > 0) {
+    // Draw animated route line
+    const routeLine = window.L.polyline(latlngs, {
+      color: "blue",
+      weight: 4,
+      dashArray: "10, 10",
+      className: "animated-route",
+    }).addTo(map);
+
+    // Fit map to route
+    map.fitBounds(routeLine.getBounds(), { padding: [20, 20] });
+
     // Start marker (green)
-    L.circleMarker(latlngs[0], {
+    window.L.circleMarker(latlngs[0], {
       radius: 6,
       color: "green",
       fillColor: "green",
@@ -82,7 +100,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }).addTo(map);
 
     // End marker (red)
-    L.circleMarker(latlngs[latlngs.length - 1], {
+    window.L.circleMarker(latlngs[latlngs.length - 1], {
       radius: 6,
       color: "red",
       fillColor: "red",
