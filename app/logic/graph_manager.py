@@ -147,6 +147,11 @@ def get_directions(start, end):
                 directions.append(
                     f"Take the stairs from floor {current_node['floor']} to floor {next_node['floor']}."
                 )
+            elif (
+                current_node.get("type") == "elevator"
+                and next_node.get("type") == "elevator"
+            ):
+                directions.append(edge_data["instruction"])
             else:
                 directions.append(
                     f"Move from floor {current_node['floor']} to floor {next_node['floor']}."

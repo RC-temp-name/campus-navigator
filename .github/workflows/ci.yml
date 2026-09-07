@@ -39,3 +39,15 @@ jobs:
 
       - name: "Tests"
         run: just test
+
+      - name: "Frontend Tests"
+        run: just test-frontend
+
+      - name: "Compile Check"
+        run: just compile
+
+      - name: "Validate Data"
+        run: just validate-data
+
+      - name: "Docker Compose Config"
+        run: just docker-config

@@ -18,6 +18,7 @@ def directions():
     steps = None
     coordinates = None
     floor_bounds = None
+    map_error = None
     error = None
     entrance = request.form.get("entrance")
     classroom = request.form.get("classroom")
@@ -32,9 +33,16 @@ def directions():
                 steps = result["directions"]
                 coordinates = result["coordinates"]
                 if coordinates:
-                    building = entrance.split("_")[0]
-                    floor = coordinates[0]["floor"]
-                    floor_bounds = get_floor_bounds(building, floor)
+                    route_floors = {coordinate["floor"] for coordinate in coordinates}
+                    if len(route_floors) > 1:
+                        map_error = (
+                            "Map preview is unavailable for routes spanning multiple floors. "
+                            "Follow the directions panel for this route."
+                        )
+                    else:
+                        building = entrance.split("_")[0]
+                        floor = coordinates[0]["floor"]
+                        floor_bounds = get_floor_bounds(building, floor)
         except RuntimeError as e:
             error = str(e)
     entrances, classrooms = get_options()
@@ -43,6 +51,7 @@ def directions():
         steps=steps,
         coordinates=coordinates,
         floor_bounds=floor_bounds,
+        map_error=map_error,
         error=error,
         entranceOptions=entrances,
         classroomOptions=classrooms,

@@ -39,9 +39,10 @@ fix:
     uvx ruff check --fix .
     just format
 
+# Release checks: `just lint`, `just format-check`, `uv run pytest`,
+# compileall, `uv run tools/validate_data.py`, and `docker compose config`.
 # THE command before pushing
-check: lint format-check test
-    uv run python -m compileall -q app run.py tools
+check: lint format-check test test-frontend compile validate-data docker-config
     @echo 'All good - ready to push'
 
 # Remove caches and build artifacts
@@ -52,10 +53,27 @@ clean:
     rm -f *.pyc *.pyo
     rm -rf dist build
 
-# Run the test suite
+# Run the Python test suite
 test:
     uv run pytest
 
+# Run browser-script tests with Node's built-in test runner
+test-frontend:
+    node --test tests/frontend/*.test.mjs
+
+# Compile Python sources
+compile:
+    uv run python -m compileall -q app run.py tools
+
+# Validate canonical graph data
+validate-data:
+    uv run tools/validate_data.py
+
+# Verify the development compose file without starting containers
+docker-config:
+    docker compose config
+    docker compose -f docker-compose.prod.yml config
+
 # Run tests with coverage report
 coverage:
-    uv run pytest --cov=app --cov-report=term-missing --cov-report=html
+    uv run pytest --cov=app --cov=tools --cov-report=term-missing --cov-report=html

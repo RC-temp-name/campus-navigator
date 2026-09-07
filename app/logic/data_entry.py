@@ -2,9 +2,11 @@ import json
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
-DATA_DIR = BASE_DIR / "data"
+REPO_ROOT = BASE_DIR.parents[1]
+DATA_DIR = REPO_ROOT / "data"
 NODES_FILE = DATA_DIR / "nodes.json"
 EDGES_FILE = DATA_DIR / "edges.json"
+DEFAULT_BUILDING = "NPB"
 
 
 # JSON helpers
@@ -55,6 +57,7 @@ def add_node():
         "id": node_id,
         "name": label,
         "type": node_type,
+        "building": DEFAULT_BUILDING,
         "coords": [x, y],
         "floor": floor,
     }

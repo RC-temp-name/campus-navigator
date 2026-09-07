@@ -22,7 +22,7 @@ Each instruction can be dismissed as you go, similar to how Google Maps lets you
 |**Flask**|Turns our Python code into a running website|
 |**NetworkX**|Models the building as a graph and calculates the shortest path between rooms|
 |**HTML & CSS**|Structure and styling of the webpage|
-|**SVG / Leaflet.js**|Draws the animated blue route line over the floor plan image|
+|**Leaflet.js**|Draws the building grid, route line, and route markers|
 |**JSON**|Text files that store our building data (rooms, coordinates, connections)|
 |**uv**|Package manager — installs and manages Python libraries|
 |**Git**|Version control — tracks changes so the team can collaborate without overwriting each other|
@@ -35,8 +35,8 @@ The building is modeled as a **graph** — locations are **nodes** and the walki
 2. **name** — the human-readable label (e.g., `"5.102"` or `"Main Staircase"`), displayed in directions
 3. **type** — the category of location (e.g., `"room"`, `"staircase"`, `"elevator"`, `"waypoint"`, `"spine"`). A `"spine"` node represents a main hallway/backbone connector used to route movement through the building, and the field is used to filter and categorize nodes
 4. **building** — the building code (e.g., `"NPB"`), allowing multi-building support
-5. **coords** — the pixel coordinates `[x, y]` on the floor plan image, used to draw the blue route line
-6. **floor** — the floor number the node is on, allowing multi-floor pathfinding and filtering
+5. **coords** — the `[x, y]` coordinates used to draw the blue route line on the map grid
+6. **floor** — the floor number the node is on, allowing multi-floor pathfinding and filtering. The browser map preview supports one floor at a time; multi-floor routes still show their step-by-step directions.
 
 Each edge stores 4 things:
 
@@ -75,15 +75,13 @@ campus_navigator/
 │   │
 │   ├── static/                  ← Files the browser downloads directly
 │   │   ├── css/
-│   │   │   └── style.css        ← Page styling
-│   │   ├── js/
-│   │   │   └── map.js           ← Draws the blue route line (Leaflet.js logic)
-│   │   └── img/
-│   │       └── floorplan.png    ← The floor plan image displayed on screen
+│   │   │   └── styles.css       ← Page styling
+│   │   └── js/
+│   │       ├── directions.js    ← Step-by-step direction cards
+│   │       └── map.js            ← Draws the route on a Leaflet grid
 │   │
 │   └── templates/               ← HTML pages Flask serves to the user
-│       ├── base.html            ← Shared page skeleton (nav bar, footer, etc.)
-│       └── index.html           ← The main search + map page
+│       └── index.html           ← The search, directions, and map page
 │
 └── data/                        ← Building data — treated like a database
     ├── nodes.json               ← Every room/intersection with its name and coordinates
@@ -116,7 +114,7 @@ graph_manager.py returns: text directions + pixel coordinates
 routes.py passes results to index.html (via Flask's render_template)
         ↓
 index.html displays the step-by-step text directions
-map.js reads the coordinates and draws the blue line over floorplan.png
+map.js reads the coordinates and draws the blue line over a coordinate grid
         ↓
 User sees directions on screen ✓
 ```
@@ -143,7 +141,7 @@ Write the Python function that loads the JSON files, builds the NetworkX graph, 
 
 **Workspace: `app/templates/`, `app/static/`**
 
-Build the HTML/CSS pages and write the JavaScript (`map.js`) that draws the animated blue line over the floor plan. Keep it mobile-friendly — users will be on their phones while walking.
+Build the HTML/CSS pages and write the JavaScript that draws the animated blue line over the coordinate grid. Keep it mobile-friendly. Users will be on their phones while walking.
 
 ### 🔌 Integration (1 person)
 

@@ -2,37 +2,42 @@ document.addEventListener("DOMContentLoaded", () => {
   if (typeof directionSteps === "undefined" || !directionSteps.length) return;
 
   const container = document.getElementById("directions-card-container");
+  if (!container) return;
+
   let currentIndex = 0;
 
   function renderSteps(index) {
-    container.innerHTML = "";
-
-    if (index >= directionSteps.length) {
-      container.innerHTML = `
-            <div class="direction-card arrived">
-                <h3>You have arrived!</h3>
-                </div>
-                 `;
-      return;
-    }
-
-    const stepText = directionSteps[index];
+    container.replaceChildren();
 
     const card = document.createElement("div");
-    card.className = "direction-card active";
+    card.className =
+      index >= directionSteps.length
+        ? "direction-card arrived"
+        : "direction-card active";
 
-    card.innerHTML = `
-        <h3>Step ${index + 1}</h3>
-        <p>${stepText}</p>
-        <button id="next-step-btn">Next</button>
-         `;
+    const heading = document.createElement("h3");
+    heading.textContent =
+      index >= directionSteps.length
+        ? "You have arrived!"
+        : `Step ${index + 1}`;
+    card.appendChild(heading);
+
+    if (index < directionSteps.length) {
+      const paragraph = document.createElement("p");
+      paragraph.textContent = directionSteps[index];
+      card.appendChild(paragraph);
+
+      const nextButton = document.createElement("button");
+      nextButton.id = "next-step-btn";
+      nextButton.textContent = "Next";
+      nextButton.addEventListener("click", () => {
+        currentIndex++;
+        renderSteps(currentIndex);
+      });
+      card.appendChild(nextButton);
+    }
 
     container.appendChild(card);
-
-    document.getElementById("next-step-btn").addEventListener("click", () => {
-      currentIndex++;
-      renderSteps(currentIndex);
-    });
   }
 
   renderSteps(currentIndex);
