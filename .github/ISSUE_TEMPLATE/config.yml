@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ideas & brainstorming
+    url: https://github.com/RC-MiniMap/MiniMap/discussions/categories/ideas
+    about: Open-ended ideas, proposals, and questions that aren't yet actionable issues.

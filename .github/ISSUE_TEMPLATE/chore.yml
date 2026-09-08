@@ -1,0 +1,48 @@
+name: Chore
+description: Refactor, documentation, data, infrastructure, or maintenance work with no product-facing change.
+title: "[Task]: "
+body:
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this work needed? What problem does it solve for the codebase or the team?
+      placeholder: "e.g. The routing module is hard to test because it holds too many responsibilities."
+    validations:
+      required: true
+  - type: textarea
+    id: proposed-change
+    attributes:
+      label: Proposed change
+      description: What will change? Describe the approach at a high level.
+    validations:
+      required: true
+  - type: textarea
+    id: affected
+    attributes:
+      label: Affected modules or data
+      description: Which areas touch this? App code, tools, tests, data files, docs, or something else?
+      placeholder: "e.g. The module in app/logic/"
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria
+      description: What outcome, when tested, shows this feature is complete?
+    validations:
+      required: false
+  - type: textarea
+    id: testing
+    attributes:
+      label: Testing requirements
+      description: What tests or validation are needed? (e.g. unit tests, `just validate-data` for data changes)
+    validations:
+      required: false
+  - type: textarea
+    id: risks
+    attributes:
+      label: Dependencies and risks
+      description: Other work this depends on, and anything that could go wrong or be hard to undo.
+    validations:
+      required: false

@@ -1,0 +1,79 @@
+name: Bug report
+description: Report a defect so we can reproduce, fix, and verify it.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One or two sentences describing the defect.
+      placeholder: "e.g. When I search for a route between rooms on different floors, the directions list comes back empty."
+    validations:
+      required: true
+  - type: textarea
+    id: current-behavior
+    attributes:
+      label: Current behavior
+      description: What actually happens? Include any error messages you see.
+      placeholder: "e.g. The page shows a blank directions panel and nothing is logged to the console."
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: What should happen instead?
+      placeholder: "e.g. The app should show turn-by-turn directions and a route line on the map."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps from a clean state. The goal is for a maintainer to reproduce the bug from your steps alone.
+      placeholder: |
+        1. Open the app (`just run`)
+        2. Set start room to "5.102" and end room to "2.201"
+        3. Click "Get directions"
+        4. Observe the empty directions panel
+      render: markdown
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, browser and version, how the app is run, and the branch/commit you're on.
+      placeholder: |
+        - OS: macOS 14.5
+        - Browser: Firefox 127
+        - How the app is run: `just run` / `just docker` / deployed
+        - Branch / commit: main @ abc1234
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Paste relevant console, terminal, or server logs. If you have none, write "N/A".
+      render: bash
+    validations:
+      required: false
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or recordings
+      description: Drag and drop images or videos, or paste links to screen recordings that show the problem.
+      placeholder: "Attach screenshots or screen recordings here (drag & drop)."
+    validations:
+      required: false
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      description: Before submitting, confirm you've checked for existing reports.
+      options:
+        - label: This issue is the first open report of this bug.
+          required: true
