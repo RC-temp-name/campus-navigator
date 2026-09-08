@@ -1,349 +1,143 @@
-## Contributing Guide
+# Contributing to MiniMap
 
-This document explains how we will contribute together in this project.
+Thanks for contributing. This guide is the source of truth for how we propose work, open pull requests, and verify changes before merging. If something is ambiguous or missing, ask and then update this guide.
 
-### Overview
+## How we work, in one line
 
-- Everyone works on their own feature branch.
-- We keep branches up to date with `main` often.
-- We use pull requests (PRs) to merge code into `main`.
-- We do **not** commit directly to `main`.
+**Issue → focused branch → pull request → `just check` + CI → review → squash merge.**
 
----
+```
+Idea still uncertain?
+  → discuss it in GitHub Discussions (Ideas category)
+  → turn it into an actionable issue (bug / feature / engineering task)
+  → create a focused branch off an up-to-date `main`
+  → open a draft or ready pull request linked to that issue
+  → run `just check` and wait for green CI
+  → get it reviewed
+  → squash-merge it
+```
 
-## Team Workflow (Quick Version)
+## Prerequisites
 
-1. Start from the latest `main`
-2. Create a feature branch
-3. Make small commits often
-4. Merge `main` into your branch regularly
-5. Open a Pull Request (PR) when your feature is ready
-6. Get review, fix feedback, then merge PR into `main`
+- [uv](https://docs.astral.sh/uv/) - Python package manager and version manager
+- [just](https://github.com/casey/just) - command runner (defines the commands below)
+- [Docker](https://www.docker.com/) - only needed for the `just docker` dev environment and the `docker-config` check step
+- Node.js - used by the frontend tests (`just test-frontend`)
 
----
+The GitHub Actions CI workflow runs the exact same commands, so what passes locally should pass in CI.
 
-## Branch Rules
+## Common commands
 
-### 1) Never work directly on `main`
+Run `just` with no arguments to list every recipe.
 
-`main` should always stay stable.
+| Command | What it does |
+| --- | --- |
+| `just install` | Install dependencies (`uv sync`) - run once after cloning |
+| `just run` | Start the app at <http://localhost:5000> |
+| `just check` | **Full pre-push gate.** Lint, formatting, tests, compile, data validation, and Docker config |
+| `just docker` | Build and run the Docker development environment |
 
-### 2) One branch per feature
+`just check` runs, in order: `lint`, `format-check`, `test`, `test-frontend`, `compile`, `validate-data`, `docker-config`. CI runs the same seven steps on every pull request to `main`, so a green `just check` is a good proxy for a green build.
 
-Use one branch for one feature.
+For faster iteration while developing, use the focused commands: `just lint`, `just format`, `just format-check`, `just test`, `just test-frontend`, `just validate-data`, `just coverage`. Run the full `just check` before pushing.
 
-Branch name examples:
+## Where ideas start
 
-- `feature/pathfinding-same-room`
-- `feature/map-polyline-animation`
-- `fix/start-end-validation`
-- `docs/contributing-workflow`
-- `simon/map-animation`
+- **Concrete bug, feature, or task?** Open an issue using the right template:
+  - **Bug report** - something is broken
+  - **Feature request** - new or changed product behavior
+  - **Engineering task** - refactors, documentation, data, infrastructure, maintenance
+- Add an ownership label (`backend`, `frontend`, `data`, `documentation`, `integration`) so the right people notice it.
 
-### 3) Keep branch scope small
+## Making a change
 
-Focus on one feature, don't edit across the whole codebase, smaller branches are easier to review, test, and merge.
+### 1. Start from an up-to-date `main`
 
----
-
-## Session Git Routine
-
-Run this flow every time you start and finish work.
-
-### Start of session
+Never commit directly to `main`. `main` must always stay stable and green.
 
 ```bash
 git checkout main
-git pull origin main # pull new commits from remote repository
-
-# If starting new work
-git checkout -b feature/short-description
-
-# If continuing existing work
-git checkout your-existing-branch
-git merge main # merge stable features from main into your branch
+git pull origin main          # make sure main is current
+git checkout -b feat/short-description
 ```
 
-### During session
+Use a descriptive, prefixed branch name:
 
-- Commit often
-- Keep commits focused on one idea
-- Write clear commit messages
+- `feat/room-to-room-routing`
+- `fix/missing-node-route`
+- `docs/contribution-workflow`
+- `refactor/pathfinding-module`
+- `chore/update-dependencies`
 
-```bash
-git add .
-git commit -m "Add validation when start and end room match"
-```
+### 2. Keep the change small and focused
 
-### End of session
+**One issue, one focused pull request.** If a change grows, split it into smaller PRs. They're easier to review, test, and merge. Keep commits small and focused on a single idea. Merge `main` into your branch often to catch conflicts early.
 
-```bash
-git checkout main
-git pull origin main # pulls latest changes from remote repo
-git checkout your-branch-name # switch back to your branch
-git merge main # merge updated main branch into your branch
-git push -u origin your-branch-name   # first push, updates your branch to remote repository on GitHub
-# later pushes can just be:
-git push
-```
+### 3. Open a pull request
 
----
+Push your branch and open a PR into `main`. The pull request template will remind you to:
 
-## Why We Merge `main` Often
+- link the issue with a closing keyword: `Closes #…`, `Fixes #…`, or `Resolves #…`
+- explain what changed and why
+- show how you tested it
+- attach screenshots/recordings for UI changes
+- note data/schema impact and run data validation for graph-data changes
 
-Regularly running `git merge main` in your branch helps:
+**Open a draft PR early** for feedback if you want input before the work is finished.
 
-- Catch conflicts early
-- Keep your feature compatible with teammate changes
-- Make final PR merge smoother
+### 4. Verify before merging
 
-Recommended:
+- Update tests whenever behavior changes, and add tests for new behavior.
+- For changes to graph data (`data/`), run `just validate-data` (also part of `just check`).
+- For UI changes, include screenshots or a screen recording.
+- Run `just check` and make sure CI is green before requesting review.
 
-- Before writing new code
-- Always before opening a PR
-- Any time `main` receives updates
+### 5. Review and merge
 
----
+- Request a review; a maintainer must approve before merging.
+- Address feedback in follow-up commits and re-run `just check`.
+- When approved, **squash-merge**, which is the default. Squashing keeps `main` history clean and gives one clear commit per PR.
 
-## Commit Guidelines
+**Title your PR in Conventional Commit style** so the squashed commit reads well:
 
-### Commit often
+| Type | Use for | Example |
+| --- | --- | --- |
+| `feat` | new feature | `feat: add room-to-room shortest path` |
+| `fix` | bug fix | `fix: handle missing node in route lookup` |
+| `docs` | documentation | `docs: add contribution workflow` |
+| `refactor` | code change with no behavior change | `refactor: simplify pathfinding module` |
+| `test` | tests only | `test: cover empty-route edge case` |
+| `chore` | tooling, deps, maintenance | `chore: pin ruff version` |
 
-- Commit after tiny, working changes.
+### Handling merge conflicts
 
-
-### Commit messages should describe intent
-
-Good:
-
-- `Add shortest-path fallback for disconnected nodes`
-- `Fix map line not rendering on mobile width`
-- `Update README setup steps for uv sync`
-
-Avoid:
-
-- `fix stuff`
-- `changes`
-- `update`
-
-### Keep commits clean
-
-- Do not mix unrelated changes in one commit
-- Avoid committing generated files unless needed
-- Never commit secrets (API keys, passwords, tokens)
-
----
-
-## Pull Request (PR) Process
-
-### 1) Push your branch
-
+Conflicts are normal. Update your branch with `main`, resolve the conflicting files, run `just check`, and commit the resolution.
 
 ```bash
-git push -u origin your-branch-name
-# Pushes your branch to GitHub
-```
-
-### 2) Open a pull request into `main`
-
-PR title format (something descriptive)
-
-- `feature: add room-to-room shortest path`
-- `fix: handle missing node in route lookup`
-- `docs: add contribution workflow`
-
-### 3) PR Description
-
-Include details about what changed and why
-
-### 4) Review with someone
-
-Before approving the PR, confirm that:
-- The code is working, tests pass
-- You and the reviewer both understand the change
-- There are no merge conflicts with `main`
-
-
-### 5) Merge PR (no direct commits to `main`)
-
-Once approved and checks pass, merge through GitHub.
-
----
-
-## Handling Merge Conflicts
-
-Conflicts are normal and expected.
-
-When `git merge main` reports conflicts (after you've updated your local `main` from `origin/main`):
-
-1. Open conflicted files and choose the correct final code
-2. Test locally
-3. Mark as resolved and commit
-
-```bash
+git merge main
+# resolve conflicts in your editor
+just check
 git add .
 git commit -m "Resolve merge conflicts with main"
 ```
 
----
+## Definition of done
 
+Before a PR can merge, all of these must be true:
 
-## Protect `main` on GitHub
+- [ ] Linked to one issue with a closing keyword
+- [ ] Scope is focused on that one issue
+- [ ] Tests updated (and added) for behavior changes; all tests pass
+- [ ] `just check` passes locally and CI is green
+- [ ] Screenshots/recordings included for UI changes
+- [ ] `just validate-data` run for graph-data changes
+- [ ] Reviewed and approved by a maintainer
+- [ ] Squash-merged with a clear Conventional Commit title
 
-Repository settings can enforce workflow automatically:
+## AI-assisted contributions
 
-- Require pull requests before merging
-- Require at least 1 approval
-- Block force pushes to `main`
-- Require branch to be up to date before merge
+AI-assisted code is welcome but treated exactly like any other contribution: **the author is responsible for it.** Before merging, make sure you understand every change, have tested it, and can explain it in review. An AI tool doesn't change the bar. Checks must still pass and reviewers must still be able to follow the code. If you can't explain a piece of generated code, rewrite it until you can.
 
-This is strongly recommended for team projects.
+## Keeping `main` protected
 
----
-
-## Quick Command Reference
-
-```bash
-# update local main
-git checkout main
-git pull origin main
-
-# create feature branch
-git checkout -b feature/your-feature
-
-# commit often
-git add .
-git commit -m "Your clear message"
-
-# keep branch fresh
-git merge main
-
-# push branch
-git push -u origin feature/your-feature
-```
-
----
-
-## VS Code / GitHub Desktop Cheatsheet
-
-An alternative to using git in the terminal is VS Code or GitHub Desktop.
-This follows the same team rules and gives the same result.
-
-### Golden Rules (Same as Terminal Workflow)
-
-- Work on your own feature branch
-- Do not commit directly to `main`
-- Keep your branch updated with `main` often
-- Open PRs from `feature/...` -> `main` only
-
----
-
-## VS Code Workflow
-
-### 1) Start of session (update your local `main`)
-
-1. Open VS Code in project folder
-2. Open **Source Control** (branch icon on left)
-3. Make sure branch is `main` (bottom-left branch name)
-4. Click `...` -> **Pull**
-
-This is equivalent to:
-
-```bash
-git checkout main
-git pull origin main
-```
-
-### 2) Create a new feature branch
-
-1. Click current branch name (bottom-left)
-2. Choose **Create new branch**
-3. Name it like `feature/short-description`
-
-Equivalent:
-
-```bash
-git checkout -b feature/short-description
-```
-
-### 3) Continue existing branch and merge `main` into it
-
-1. Switch to your feature branch (click branch name)
-2. Click `...` -> **Branch** -> **Merge Branch...**
-3. Select `main`
-4. If conflicts appear, use VS Code Merge Editor and choose final code carefully
-5. Save files, then commit conflict resolution
-
-Equivalent:
-
-```bash
-git checkout your-branch
-git merge main
-```
-
-### 4) Commit changes
-
-1. In Source Control, stage changed files (`+`)
-2. Write a clear commit message
-3. Click **Commit**
-
-Equivalent:
-
-```bash
-git add .
-git commit -m "Your clear message"
-```
-
-### 5) Push branch
-
-1. Click **Publish Branch** (first time) or **Push/Sync Changes** (later)
-
-Equivalent:
-
-```bash
-git push -u origin your-branch-name
-# later
-git push
-```
-
----
-
-## GitHub Desktop Workflow (Alternative)
-
-If VS Code Source Control feels confusing, GitHub Desktop is simpler for many people:
-
-1. Fetch origin
-2. Switch to `main` and pull latest
-3. Switch back to your feature branch
-4. Use **Branch** -> **Update from main**
-5. Commit + Push
-6. Open PR to `main`
-
----
-
-## Important PR Rule
-
-- Correct PR direction: `feature/...` -> `main`
-- Avoid opening PRs like `main` -> `feature/...` manually
-- If GitHub shows **Update branch** on your feature PR, using that button is okay (it updates your feature branch safely)
-
----
-
-## Conflict Checklist (When Merge Fails)
-
-1. Resolve all conflict markers in files
-2. Run project locally and test
-3. Commit with message like: `Resolve merge conflicts with main`
-4. Push branch
-5. Re-check PR
-
----
-
-## Terminal Command ↔ VS Code Action Map
-
-- `git pull origin main` -> Source Control `...` -> **Pull**
-- `git checkout -b feature/x` -> Branch name -> **Create new branch**
-- `git checkout my-branch` -> Branch name -> **Switch branch**
-- `git merge main` -> `...` -> **Branch** -> **Merge Branch...** -> `main`
-- `git commit -m "msg"` -> Stage files + Commit message + **Commit**
-- `git push` -> **Push** / **Sync Changes**
+Rely on the rules above. We have branch protection enabled on `main`: require pull requests (no direct pushes). Keep branches up to date and require status checks to pass before merging.
